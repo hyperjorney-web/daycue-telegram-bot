@@ -233,14 +233,13 @@ async def ensure_daily_job(app: Application, profile: UserProfile) -> None:
     name = f"daily_{profile.chat_id}"
     jobs[profile.chat_id] = name
 
-    app.job_queue.run_daily(
-        send_daily,
-        time=t,
-        days=(0, 1, 2, 3, 4, 5, 6),
-        name=name,
-        data={"chat_id": profile.chat_id},
-        timezone=TZ,
-    )
+app.job_queue.run_daily(
+    send_daily,
+    time=t,
+    days=(0, 1, 2, 3, 4, 5, 6),
+    name=name,
+    data={"chat_id": profile.chat_id},
+)
 
 async def schedule_test_ping(app: Application, chat_id: int) -> None:
     app.job_queue.run_once(

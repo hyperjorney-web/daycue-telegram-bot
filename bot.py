@@ -7,7 +7,7 @@ if not TOKEN:
     sys.exit(1)
 
 import os
-
+user_state = {}  # chat_id -> data
 from datetime import datetime, date
 from dateutil.parser import isoparse
 from apscheduler.schedulers.asyncio import AsyncIOScheduler

@@ -1,3 +1,29 @@
+print("BOOT: bot.py v0.9.2 - 2025-12-13", flush=True)
+
+import os
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+def start_health_server():
+    port = int(os.getenv("PORT", "8080"))
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            self.wfile.write(b"ok")
+
+        def log_message(self, format, *args):
+            return
+
+    server = HTTPServer(("0.0.0.0", port), Handler)
+    server.serve_forever()
+
+# call this once on startup:
+threading.Thread(target=start_health_server, daemon=True).start()
+
+
 import os
 import sys
 import re

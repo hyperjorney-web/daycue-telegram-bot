@@ -4,13 +4,13 @@
 """
 Daycue Telegram Bot (single-file MVP)
 - python-telegram-bot v20+
-- No sqlite, no APScheduler, no JobQueue dependency
-- Lightweight daily notifications via an asyncio background loop
-- Simple JSON persistence (optional) to survive restarts if a volume is mounted
+- No sqlite, no APScheduler, no PTB JobQueue
+- Daily notifications via asyncio background loop
+- JSON persistence (optional) to survive restarts if a volume is mounted
 
 ENV:
 - TELEGRAM_BOT_TOKEN   (required)
-- DATA_DIR             (optional, default: ./data)  -> stores users.json if writable
+- DATA_DIR             (optional, default: ./data) -> stores users.json if writable
 - TZ_NAME              (optional, default: Europe/Stockholm)
 """
 
@@ -20,14 +20,10 @@ import logging
 import os
 import re
 from dataclasses import dataclass, asdict
-from datetime import datetime, date, time, timedelta
+from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
 
-from telegram import (
-    Update,
-    ReplyKeyboardMarkup,
-    ReplyKeyboardRemove,
-)
+from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -37,7 +33,7 @@ from telegram.ext import (
     filters,
 )
 
-VERSION = "0.11.0"
+VERSION = "0.11.1"
 
 # ---------- Logging ----------
 logging.basicConfig(
@@ -150,7 +146,6 @@ class Profile:
         )
 
 
-# Global in-memory store (loaded from disk at boot)
 PROFILES: dict[int, Profile] = {}
 
 
@@ -173,23 +168,38 @@ def save_profiles() -> None:
     _atomic_write_json(USERS_FILE, payload)
 
 
-# ---------- Validation helpers ----------
-DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-TIME_RE = re.compile(r"^\d{2}:\d{2}$")
+def get_profile(chat_id: int) -> Profile | None:
+    return PROFILES.get(chat_id)
 
 
-def parse_date_ymd(s: str) -> date | None:
-    if not DATE_RE.match(s.strip()):
+def upsert_profile(p: Profile) -> None:
+    PROFILES[p.chat_id] = p
+    save_profiles()
+
+
+# ---------- Parsing (FIXED: accept 2025-12-9 + 9:00) ----------
+DATE_FLEX_RE = re.compile(r"^\d{4}-\d{1,2}-\d{1,2}$")
+TIME_FLEX_RE = re.compile(r"^\d{1,2}:\d{2}$")
+
+
+def normalize_date(s: str) -> str | None:
+    s = s.strip()
+    if not DATE_FLEX_RE.match(s):
         return None
     try:
-        return datetime.fromisoformat(s.strip()).date()
+        y, m, d = s.split("-")
+        y_i = int(y)
+        m_i = int(m)
+        d_i = int(d)
+        dt = date(y_i, m_i, d_i)  # validates
+        return dt.isoformat()      # always YYYY-MM-DD
     except Exception:
         return None
 
 
-def parse_time_hm(s: str) -> tuple[int, int] | None:
+def normalize_time(s: str) -> tuple[int, int] | None:
     s = s.strip()
-    if not TIME_RE.match(s):
+    if not TIME_FLEX_RE.match(s):
         return None
     try:
         hh, mm = s.split(":")
@@ -208,29 +218,27 @@ def clamp(n: int, a: int, b: int) -> int:
 
 # ---------- Cycle logic ----------
 def menstrual_length(profile: Profile) -> int:
-    s = parse_date_ymd(profile.period_start)
-    e = parse_date_ymd(profile.period_end)
-    if not s or not e:
+    s = profile.period_start
+    e = profile.period_end
+    try:
+        sd = date.fromisoformat(s)
+        ed = date.fromisoformat(e)
+    except Exception:
         return 5
-    n = (e - s).days + 1  # inclusive
-    # MVP guardrails
+    n = (ed - sd).days + 1
     return clamp(n, 3, 8)
 
 
 def cycle_day(profile: Profile, now: datetime) -> int:
-    """Day number (1..cycle_length) based on period_start, increments at 00:00 TZ."""
-    s = parse_date_ymd(profile.period_start)
-    if not s:
+    try:
+        s = date.fromisoformat(profile.period_start)
+    except Exception:
         return 1
-    today = now.date()
-    delta = (today - s).days
-    # day 1 = start day
-    day = (delta % profile.cycle_length) + 1
-    return day
+    delta = (now.date() - s).days
+    return (delta % profile.cycle_length) + 1
 
 
 def trend_arrow(progress01: float) -> str:
-    # early: down, mid: stable, late: up
     if progress01 < 0.34:
         return "↘"
     if progress01 < 0.67:
@@ -268,7 +276,7 @@ def phase_model(day: int, cycle_len: int, mlen: int) -> dict:
         phase_len = fol_len
         hormones = "Estrogen rising. Motivation + optimism increase."
         help_more = (
-            "Great time to plan and start things.\n"
+            "Great time to plan + start things.\n"
             "Encourage movement, playful dates, momentum.\n"
             "Clear communication usually improves."
         )
@@ -319,6 +327,7 @@ def today_card(profile: Profile, now: datetime) -> str:
     model = phase_model(day, profile.cycle_length, mlen)
     nh = f"{profile.notify_hh:02d}:{profile.notify_mm:02d}"
 
+    # Format exactly like you asked (Alona + cycle day + phase + ping)
     return (
         f"*TODAY: {profile.partner_name}*\n"
         f"Cycle day: *{day}/{profile.cycle_length}*\n"
@@ -353,7 +362,6 @@ def forecast_7(profile: Profile, now: datetime) -> str:
     base = now
     for i in range(7):
         d = (base + timedelta(days=i)).astimezone(TZ)
-        # simulate cycle day on that date
         tmp_now = datetime(d.year, d.month, d.day, 12, 0, tzinfo=TZ)
         cd = cycle_day(profile, tmp_now)
         model = phase_model(cd, profile.cycle_length, menstrual_length(profile))
@@ -371,7 +379,7 @@ def forecast_7(profile: Profile, now: datetime) -> str:
     ONB_PEND,
     ONB_CYCLE,
     ONB_TIME,
-    SET_MODE,         # settings menu
+    SET_MODE,
     SET_VALUE_NAME,
     SET_VALUE_DOB,
     SET_VALUE_PSTART,
@@ -392,27 +400,18 @@ async def reply(update: Update, text: str, *, kb=None, remove_kb=False, md=True)
     )
 
 
-def get_profile(chat_id: int) -> Profile | None:
-    return PROFILES.get(chat_id)
-
-
-def upsert_profile(p: Profile) -> None:
-    PROFILES[p.chat_id] = p
-    save_profiles()
-
-
 async def cmd_ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await reply(update, "🏓 Pong. I’m alive.", kb=menu_kb())
+    await reply(update, "🏓 Pong. I’m alive.", kb=menu_kb(), md=False)
 
 
 async def cmd_version(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await reply(update, f"🧩 Daycue bot version: *v{VERSION}*", kb=menu_kb())
+    await reply(update, f"🧩 Daycue bot version: *v{VERSION}*", kb=menu_kb(), md=True)
 
 
 async def cmd_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     p = get_profile(update.effective_chat.id)
     if not p:
-        await reply(update, "Let’s set you up first. Type /start", kb=ReplyKeyboardRemove(), md=False)
+        await reply(update, "Type /start to set up.", remove_kb=True, md=False)
         return
     await reply(update, "✅ Menu ready.", kb=menu_kb(), md=False)
 
@@ -432,7 +431,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         update,
         "Welcome. Quick onboarding.\n\n"
         "1/5 - Enter partner nickname (example: *Alona*)",
-        kb=ReplyKeyboardRemove(),
+        remove_kb=True,
         md=True,
     )
     return ONB_NAME
@@ -463,12 +462,12 @@ async def onb_dob(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await reply(update, "3/5 - Last period START date (YYYY-MM-DD)", md=True)
         return ONB_PSTART
 
-    d = parse_date_ymd(text)
-    if not d:
-        await reply(update, "⚠️ Invalid date. Use YYYY-MM-DD (example: 1990-04-22) or type *skip*.", md=True)
+    nd = normalize_date(text)
+    if not nd:
+        await reply(update, "⚠️ Invalid date. Use YYYY-MM-DD (or YYYY-M-D). Example: 1987-08-16", md=True)
         return ONB_DOB
 
-    context.user_data["onb"]["partner_dob"] = text
+    context.user_data["onb"]["partner_dob"] = nd
     await reply(update, "3/5 - Last period START date (YYYY-MM-DD)", md=True)
     return ONB_PSTART
 
@@ -479,12 +478,12 @@ async def onb_pstart(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await reply(update, "Finish onboarding first 🙂\n\n3/5 - Last period START date (YYYY-MM-DD)", md=True)
         return ONB_PSTART
 
-    d = parse_date_ymd(text)
-    if not d:
-        await reply(update, "⚠️ Invalid date. Use YYYY-MM-DD.", md=True)
+    nd = normalize_date(text)
+    if not nd:
+        await reply(update, "⚠️ Invalid date. Use YYYY-MM-DD (or YYYY-M-D).", md=True)
         return ONB_PSTART
 
-    context.user_data["onb"]["period_start"] = text
+    context.user_data["onb"]["period_start"] = nd
     await reply(update, "4/5 - Last period END date (YYYY-MM-DD)", md=True)
     return ONB_PEND
 
@@ -495,17 +494,18 @@ async def onb_pend(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await reply(update, "Finish onboarding first 🙂\n\n4/5 - Last period END date (YYYY-MM-DD)", md=True)
         return ONB_PEND
 
-    e = parse_date_ymd(text)
-    if not e:
-        await reply(update, "⚠️ Invalid date. Use YYYY-MM-DD.", md=True)
+    ne = normalize_date(text)
+    if not ne:
+        await reply(update, "⚠️ Invalid date. Use YYYY-MM-DD (or YYYY-M-D).", md=True)
         return ONB_PEND
 
-    s = parse_date_ymd(context.user_data["onb"]["period_start"])
-    if s and e < s:
+    s = date.fromisoformat(context.user_data["onb"]["period_start"])
+    e = date.fromisoformat(ne)
+    if e < s:
         await reply(update, "⚠️ Period END can’t be before START. Try again.", md=True)
         return ONB_PEND
 
-    context.user_data["onb"]["period_end"] = text
+    context.user_data["onb"]["period_end"] = ne
     await reply(update, "5/5 - Cycle length in days (21-35). Example: *28*", md=True)
     return ONB_CYCLE
 
@@ -525,19 +525,19 @@ async def onb_cycle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ONB_CYCLE
 
     context.user_data["onb"]["cycle_length"] = n
-    await reply(update, "✅ Set daily notification time (HH:MM). Example: *09:00*", md=True)
+    await reply(update, "✅ Set daily notification time (H:MM or HH:MM). Example: *9:00* or *09:00*", md=True)
     return ONB_TIME
 
 
 async def onb_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (update.message.text or "").strip()
     if is_menu_text(text):
-        await reply(update, "Finish onboarding first 🙂\n\nSet daily notification time (HH:MM). Example: *09:00*", md=True)
+        await reply(update, "Finish onboarding first 🙂\n\nSet daily notification time (H:MM or HH:MM).", md=True)
         return ONB_TIME
 
-    hm = parse_time_hm(text)
+    hm = normalize_time(text)
     if not hm:
-        await reply(update, "⚠️ Invalid time. Use HH:MM (example: 09:00).", md=True)
+        await reply(update, "⚠️ Invalid time. Use H:MM or HH:MM (example: 9:00).", md=True)
         return ONB_TIME
 
     hh, mm = hm
@@ -559,12 +559,8 @@ async def onb_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     upsert_profile(p)
 
     now = datetime.now(TZ)
-    await reply(
-        update,
-        "✅ Setup complete.\n\nHere’s *today* + your menu:",
-        kb=menu_kb(),
-        md=True,
-    )
+    # IMPORTANT: show menu immediately and keep it
+    await reply(update, "✅ Setup complete. Menu is ready 👇", kb=menu_kb(), md=False)
     await reply(update, today_card(p, now), kb=menu_kb(), md=True)
     return ConversationHandler.END
 
@@ -575,7 +571,7 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     p = get_profile(chat_id)
     if not p:
-        await reply(update, "Type /start to set up.", md=False)
+        await reply(update, "Type /start to set up.", remove_kb=True, md=False)
         return ConversationHandler.END
 
     now = datetime.now(TZ)
@@ -596,8 +592,8 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await reply(update, "⚙️ Settings", kb=settings_kb(p.paused), md=False)
         return SET_MODE
 
-    # If user typed something else while not in onboarding/settings, just show menu
-    await reply(update, "Use the menu 🙂", kb=menu_kb(), md=False)
+    # Default: keep menu visible
+    await reply(update, "Use the menu 👇", kb=menu_kb(), md=False)
     return ConversationHandler.END
 
 
@@ -615,27 +611,27 @@ async def settings_mode(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     if text == SET_NAME:
-        await reply(update, "Enter partner name (example: Alona)", kb=ReplyKeyboardRemove(), md=False)
+        await reply(update, "Enter partner name (example: Alona)", remove_kb=True, md=False)
         return SET_VALUE_NAME
 
     if text == SET_DOB:
-        await reply(update, "Enter DOB (YYYY-MM-DD) or type 'skip'", kb=ReplyKeyboardRemove(), md=False)
+        await reply(update, "Enter DOB (YYYY-MM-DD) or type 'skip'", remove_kb=True, md=False)
         return SET_VALUE_DOB
 
     if text == SET_PSTART:
-        await reply(update, "Enter period START (YYYY-MM-DD)", kb=ReplyKeyboardRemove(), md=False)
+        await reply(update, "Enter period START (YYYY-MM-DD)", remove_kb=True, md=False)
         return SET_VALUE_PSTART
 
     if text == SET_PEND:
-        await reply(update, "Enter period END (YYYY-MM-DD)", kb=ReplyKeyboardRemove(), md=False)
+        await reply(update, "Enter period END (YYYY-MM-DD)", remove_kb=True, md=False)
         return SET_VALUE_PEND
 
     if text == SET_CYCLE:
-        await reply(update, "Enter cycle length (21-35)", kb=ReplyKeyboardRemove(), md=False)
+        await reply(update, "Enter cycle length (21-35)", remove_kb=True, md=False)
         return SET_VALUE_CYCLE
 
     if text == SET_TIME:
-        await reply(update, "Enter daily ping time (HH:MM)", kb=ReplyKeyboardRemove(), md=False)
+        await reply(update, "Enter daily ping time (H:MM or HH:MM)", remove_kb=True, md=False)
         return SET_VALUE_TIME
 
     if text == SET_PAUSE:
@@ -653,7 +649,7 @@ async def settings_mode(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text == SET_RESET:
         PROFILES.pop(chat_id, None)
         save_profiles()
-        await reply(update, "🗑 Reset done. Type /start to set up again.", kb=ReplyKeyboardRemove(), md=False)
+        await reply(update, "🗑 Reset done. Type /start to set up again.", remove_kb=True, md=False)
         return ConversationHandler.END
 
     await reply(update, "Pick an option from Settings.", kb=settings_kb(p.paused), md=False)
@@ -682,11 +678,11 @@ async def set_value_dob(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text.lower() == "skip":
         p.partner_dob = ""
     else:
-        d = parse_date_ymd(text)
-        if not d:
-            await reply(update, "⚠️ Invalid date. Use YYYY-MM-DD or type 'skip'.", md=False)
+        nd = normalize_date(text)
+        if not nd:
+            await reply(update, "⚠️ Invalid date. Use YYYY-MM-DD (or YYYY-M-D) or type 'skip'.", md=False)
             return SET_VALUE_DOB
-        p.partner_dob = text
+        p.partner_dob = nd
     upsert_profile(p)
     await reply(update, "✅ Updated.", kb=settings_kb(p.paused), md=False)
     return SET_MODE
@@ -697,16 +693,20 @@ async def set_value_pstart(update: Update, context: ContextTypes.DEFAULT_TYPE):
     p = get_profile(update.effective_chat.id)
     if not p:
         return ConversationHandler.END
-    d = parse_date_ymd(text)
-    if not d:
-        await reply(update, "⚠️ Invalid date. Use YYYY-MM-DD.", md=False)
+    nd = normalize_date(text)
+    if not nd:
+        await reply(update, "⚠️ Invalid date. Use YYYY-MM-DD (or YYYY-M-D).", md=False)
         return SET_VALUE_PSTART
-    e = parse_date_ymd(p.period_end)
-    if e and d > e:
-        await reply(update, "⚠️ START can’t be after END. Update END first or pick earlier START.", md=False)
-        return SET_VALUE_PSTART
-    p.period_start = text
-    p.last_sent = ""  # recalc fresh
+    try:
+        e = date.fromisoformat(p.period_end) if p.period_end else None
+        d = date.fromisoformat(nd)
+        if e and d > e:
+            await reply(update, "⚠️ START can’t be after END. Update END first.", md=False)
+            return SET_VALUE_PSTART
+    except Exception:
+        pass
+    p.period_start = nd
+    p.last_sent = ""
     upsert_profile(p)
     await reply(update, "✅ Updated.", kb=settings_kb(p.paused), md=False)
     return SET_MODE
@@ -717,15 +717,19 @@ async def set_value_pend(update: Update, context: ContextTypes.DEFAULT_TYPE):
     p = get_profile(update.effective_chat.id)
     if not p:
         return ConversationHandler.END
-    d = parse_date_ymd(text)
-    if not d:
-        await reply(update, "⚠️ Invalid date. Use YYYY-MM-DD.", md=False)
+    nd = normalize_date(text)
+    if not nd:
+        await reply(update, "⚠️ Invalid date. Use YYYY-MM-DD (or YYYY-M-D).", md=False)
         return SET_VALUE_PEND
-    s = parse_date_ymd(p.period_start)
-    if s and d < s:
-        await reply(update, "⚠️ END can’t be before START.", md=False)
-        return SET_VALUE_PEND
-    p.period_end = text
+    try:
+        s = date.fromisoformat(p.period_start) if p.period_start else None
+        d = date.fromisoformat(nd)
+        if s and d < s:
+            await reply(update, "⚠️ END can’t be before START.", md=False)
+            return SET_VALUE_PEND
+    except Exception:
+        pass
+    p.period_end = nd
     p.last_sent = ""
     upsert_profile(p)
     await reply(update, "✅ Updated.", kb=settings_kb(p.paused), md=False)
@@ -756,9 +760,9 @@ async def set_value_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     p = get_profile(update.effective_chat.id)
     if not p:
         return ConversationHandler.END
-    hm = parse_time_hm(text)
+    hm = normalize_time(text)
     if not hm:
-        await reply(update, "⚠️ Invalid time. Use HH:MM (example: 09:00).", md=False)
+        await reply(update, "⚠️ Invalid time. Use H:MM or HH:MM (example: 9:00).", md=False)
         return SET_VALUE_TIME
     p.notify_hh, p.notify_mm = hm
     p.last_sent = ""
@@ -767,7 +771,7 @@ async def set_value_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return SET_MODE
 
 
-# ---------- Notifications (background loop, no JobQueue) ----------
+# ---------- Notifications (background loop) ----------
 async def notifications_loop(app: Application):
     await asyncio.sleep(2)
     log.info("🔔 Notifications loop started (%s)", TZ_NAME)
@@ -781,7 +785,6 @@ async def notifications_loop(app: Application):
                 if p.paused:
                     continue
 
-                # send once per day at scheduled minute
                 if now.hour == p.notify_hh and now.minute == p.notify_mm:
                     if p.last_sent != today_str:
                         try:
@@ -801,8 +804,16 @@ async def notifications_loop(app: Application):
         except Exception as e:
             log.exception("Notifications loop error: %s", e)
 
-        # tick every 20s (fast enough, cheap)
         await asyncio.sleep(20)
+
+
+# ---------- Commands shortcuts ----------
+async def cmd_period(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    p = get_profile(update.effective_chat.id)
+    if not p:
+        await reply(update, "Type /start to set up.", md=False)
+        return
+    await reply(update, "⚙️ Settings -> update period dates", kb=settings_kb(p.paused), md=False)
 
 
 # ---------- App wiring ----------
@@ -819,12 +830,11 @@ def build_app() -> Application:
 
     app = Application.builder().token(token).build()
 
-    # Commands
     app.add_handler(CommandHandler("ping", cmd_ping))
     app.add_handler(CommandHandler("version", cmd_version))
     app.add_handler(CommandHandler("menu", cmd_menu))
+    app.add_handler(CommandHandler("period", cmd_period))
 
-    # Onboarding conversation
     onboarding = ConversationHandler(
         entry_points=[CommandHandler("start", cmd_start)],
         states={
@@ -841,7 +851,6 @@ def build_app() -> Application:
     )
     app.add_handler(onboarding)
 
-    # Settings conversation: triggered by pressing "⚙️ Settings" from menu
     settings_conv = ConversationHandler(
         entry_points=[MessageHandler(filters.TEXT & ~filters.COMMAND & filters.Regex(f"^{re.escape(BTN_SETTINGS)}$"), handle_menu)],
         states={
@@ -853,19 +862,14 @@ def build_app() -> Application:
             SET_VALUE_CYCLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_value_cycle)],
             SET_VALUE_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_value_time)],
         },
-        fallbacks=[
-            CommandHandler("menu", cmd_menu),
-            CommandHandler("start", cmd_start),
-        ],
+        fallbacks=[CommandHandler("menu", cmd_menu), CommandHandler("start", cmd_start)],
         name="settings",
         persistent=False,
     )
     app.add_handler(settings_conv)
 
-    # Menu buttons (Today/Forecast/About/Settings)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu))
 
-    # Start background notifications task
     async def _post_init(application: Application):
         application.create_task(notifications_loop(application))
 
@@ -877,7 +881,6 @@ def build_app() -> Application:
 def main():
     log.info("🚀 Daycue boot v%s", VERSION)
     app = build_app()
-    # Polling (works on Fly without exposing port 8080)
     app.run_polling(
         drop_pending_updates=True,
         allowed_updates=Update.ALL_TYPES,

@@ -1,3 +1,7 @@
+# In-memory MVP storage (no DB)
+users = {}
+feedback = []
+
 import os
 import sys
 
@@ -7,7 +11,7 @@ if not TOKEN:
     sys.exit(1)
 
 import os
-user_state = {}  # chat_id -> data
+
 from datetime import datetime, date
 from dateutil.parser import isoparse
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -32,29 +36,7 @@ DB_PATH = "daycue.db"
 
 ASK_NAME, ASK_START_DATE, ASK_CYCLE_LEN, ASK_TIME = range(4)
 
-def db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            chat_id INTEGER PRIMARY KEY,
-            partner_name TEXT,
-            period_start TEXT,
-            cycle_length INTEGER,
-            send_time TEXT,
-            paused INTEGER DEFAULT 0
-        )
-    """)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS feedback (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            chat_id INTEGER,
-            day_number INTEGER,
-            rating TEXT,
-            created_at TEXT
-        )
-    """)
-    conn.commit()
-    return conn
+
 
 def upsert_user(chat_id, **fields):
     conn = db()

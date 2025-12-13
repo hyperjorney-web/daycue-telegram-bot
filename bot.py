@@ -1,426 +1,551 @@
 import os
 import sys
 import re
+import json
+import datetime as dt
 from dataclasses import dataclass
-from datetime import datetime, date, time
 from zoneinfo import ZoneInfo
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import (
+    Update,
+    ReplyKeyboardMarkup,
+    KeyboardButton,
+)
 from telegram.ext import (
-    Application,
     ApplicationBuilder,
-    CallbackQueryHandler,
     CommandHandler,
-    ContextTypes,
-    ConversationHandler,
     MessageHandler,
+    ContextTypes,
     filters,
 )
 
-# -----------------------
+# =========================
 # Config
-# -----------------------
+# =========================
+VERSION = "0.9.2"
 TZ = ZoneInfo("Europe/Stockholm")
 
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 if not TOKEN:
-    print("ERROR: TELEGRAM_BOT_TOKEN is missing")
+    print("ERROR: TELEGRAM_BOT_TOKEN is missing (set it as a Fly secret)")
     sys.exit(1)
 
-# -----------------------
-# MVP In-memory storage
-# -----------------------
-@dataclass
-class UserProfile:
-    chat_id: int
-    partner_nick: str | None = None
-    partner_dob: str | None = None        # YYYY-MM-DD or None
-    period_start: str | None = None       # YYYY-MM-DD
-    period_end: str | None = None         # YYYY-MM-DD
-    cycle_length: int = 28
-    notify_time: str = "09:00"            # HH:MM
-    paused: bool = False
+# In-memory storage (MVP)
+PROFILES: dict[int, dict] = {}        # chat_id -> profile dict
+ONBOARDING: dict[int, dict] = {}      # chat_id -> {step:int, temp:dict}
+LAST_SENT: dict[int, str] = {}        # chat_id -> YYYY-MM-DD last daily sent
+JOBS_STARTED: set[int] = set()        # chat_ids that have job loop attached
 
-users: dict[int, UserProfile] = {}
-jobs: dict[int, str] = {}  # chat_id -> job name
 
-# -----------------------
-# Conversation states
-# -----------------------
-ASK_NICK, ASK_DOB, ASK_START, ASK_END, ASK_CYCLE, ASK_NOTIFY = range(6)
+# =========================
+# UI helpers
+# =========================
+def menu_markup() -> ReplyKeyboardMarkup:
+    rows = [
+        [KeyboardButton("📅 Today"), KeyboardButton("🔮 Forecast")],
+        [KeyboardButton("🔔 Send now"), KeyboardButton("📊 Status")],
+        [KeyboardButton("⏸ Pause"), KeyboardButton("▶️ Resume")],
+        [KeyboardButton("♻️ Reset"), KeyboardButton("⚙️ Settings")],
+    ]
+    return ReplyKeyboardMarkup(rows, resize_keyboard=True)
 
-# -----------------------
-# Helpers
-# -----------------------
-def now_local() -> datetime:
-    return datetime.now(TZ)
 
-def parse_yyyy_mm_dd(s: str) -> date | None:
+async def send_text(update: Update, text: str, context: ContextTypes.DEFAULT_TYPE):
+    # Always attach the menu so it never “disappears”
+    await update.effective_chat.send_message(text=text, reply_markup=menu_markup())
+
+
+def parse_date(s: str) -> dt.date | None:
     try:
-        return datetime.strptime(s.strip(), "%Y-%m-%d").date()
+        return dt.datetime.strptime(s.strip(), "%Y-%m-%d").date()
     except Exception:
         return None
 
-def parse_hh_mm(s: str) -> time | None:
-    m = re.match(r"^([01]\d|2[0-3]):([0-5]\d)$", s.strip())
-    if not m:
+
+def parse_time(s: str) -> dt.time | None:
+    try:
+        return dt.datetime.strptime(s.strip(), "%H:%M").time()
+    except Exception:
         return None
-    return time(int(m.group(1)), int(m.group(2)))
 
-def get_or_create(chat_id: int) -> UserProfile:
-    if chat_id not in users:
-        users[chat_id] = UserProfile(chat_id=chat_id)
-    return users[chat_id]
 
-def clamp_day(day: int, cycle_len: int) -> int:
-    if cycle_len <= 0:
-        return 1
-    return ((day - 1) % cycle_len) + 1
+def clamp(n: int, lo: int, hi: int) -> int:
+    return max(lo, min(hi, n))
 
-def cycle_day(profile: UserProfile, today: date | None = None) -> int:
-    if today is None:
-        today = now_local().date()
-    if not profile.period_start:
-        return 1
-    start = parse_yyyy_mm_dd(profile.period_start)
-    if not start:
-        return 1
-    diff = (today - start).days
-    return clamp_day(diff + 1, profile.cycle_length)
 
-def phase_for_day(day: int, cycle_len: int) -> str:
-    # MVP mapping - readable and stable
-    # (works best at 28, but good enough for 21-35 MVP)
+def bar(value_1_to_5: int) -> str:
+    v = clamp(value_1_to_5, 1, 5)
+    return "▰" * v + "▱" * (5 - v)
+
+
+# =========================
+# Cycle logic (simple MVP)
+# =========================
+def cycle_day(profile: dict, today: dt.date) -> int:
+    start: dt.date = profile["period_start"]
+    length: int = profile["cycle_length"]
+    delta = (today - start).days
+    return (delta % length) + 1
+
+
+def phase_for(day: int, length: int) -> str:
+    # MVP ranges, reasonable default:
+    # Menstrual: 1-5
+    # Follicular: 6-13
+    # Ovulatory: 14-17
+    # Luteal: 18-end
     if day <= 5:
         return "Menstrual"
-    if day <= max(6, int(cycle_len * 0.45)):  # roughly follicular until ~45%
+    if 6 <= day <= 13:
         return "Follicular"
-    if day <= max(7, int(cycle_len * 0.57)):  # short ovulation window
+    if 14 <= day <= 17:
         return "Ovulatory"
     return "Luteal"
 
-def day_payload(profile: UserProfile) -> dict:
-    d = cycle_day(profile)
-    phase = phase_for_day(d, profile.cycle_length)
 
+def phase_emoji(phase: str) -> str:
+    return {
+        "Menstrual": "🩸",
+        "Follicular": "🌱",
+        "Ovulatory": "🔥",
+        "Luteal": "🌙",
+    }.get(phase, "✨")
+
+
+def phase_payload(phase: str) -> dict:
+    # Values are 1-5 for easy “game HUD” bars
     if phase == "Menstrual":
-        stats = {
-            "Mood stability": "Low",
-            "Social drive": "Low",
-            "Emotional needs": "Comfort + patience",
-            "Anxiety": "Medium",
-            "Irritability": "Medium",
-            "Cravings": "High (warm + sweet)",
-            "Sexual drive": "Low",
-            "Cognitive focus": "Low/Medium",
+        return {
+            "prognosis": "Low energy window",
+            "stats": {
+                "Mood stability": (2, "🎭"),
+                "Social drive": (2, "🗣️"),
+                "Emotional needs": (4, "❤️"),
+                "Anxiety": (3, "🔥"),
+                "Irritability": (3, "💢"),
+                "Cravings": (5, "🍫"),
+                "Sexual drive": (2, "💕"),
+                "Cognitive focus": (2, "🧠"),
+            },
+            "actions": [
+                "🤝 Keep plans light. Offer help + warmth.",
+                "🫶 Ask: comfort or space?",
+                "🍲 Food: soup, tea, chocolate, cozy dinner.",
+                "🛌 Protect sleep and downtime.",
+            ],
         }
-        recs = [
-            "Keep plans light. Offer help + warmth.",
-            "Ask: comfort or space?",
-            "Food: soup, tea, chocolate, cozy dinner.",
-        ]
-        prognosis = "Low energy window"
-    elif phase == "Follicular":
-        stats = {
-            "Mood stability": "Medium/High",
-            "Social drive": "High",
-            "Emotional needs": "Encouragement + fun",
-            "Anxiety": "Low",
-            "Irritability": "Low",
-            "Cravings": "Low",
-            "Sexual drive": "Rising",
-            "Cognitive focus": "High",
+    if phase == "Follicular":
+        return {
+            "prognosis": "Energy rising + optimistic tone",
+            "stats": {
+                "Mood stability": (4, "🎭"),
+                "Social drive": (4, "🗣️"),
+                "Emotional needs": (3, "❤️"),
+                "Anxiety": (2, "🔥"),
+                "Irritability": (2, "💢"),
+                "Cravings": (2, "🍫"),
+                "Sexual drive": (3, "💕"),
+                "Cognitive focus": (4, "🧠"),
+            },
+            "actions": [
+                "🎯 Plan active stuff: walk, gym, mini-adventure.",
+                "🗓️ Great for decisions + planning.",
+                "🌿 Food: fresh, protein, crunchy snacks.",
+                "😄 Keep it playful. Encourage new experiences.",
+            ],
         }
-        recs = [
-            "Do something active together (walk/date/new place).",
-            "Support goals and ideas. Be playful.",
-            "Good days for planning and decisions.",
-        ]
-        prognosis = "High capacity window"
-    elif phase == "Ovulatory":
-        stats = {
-            "Mood stability": "High",
-            "Social drive": "Very High",
-            "Emotional needs": "Connection + compliments",
-            "Anxiety": "Low",
-            "Irritability": "Low",
-            "Cravings": "Low/Medium",
-            "Sexual drive": "High",
-            "Cognitive focus": "Very High",
+    if phase == "Ovulatory":
+        return {
+            "prognosis": "Peak charisma + connection window",
+            "stats": {
+                "Mood stability": (5, "🎭"),
+                "Social drive": (5, "🗣️"),
+                "Emotional needs": (4, "❤️"),
+                "Anxiety": (1, "🔥"),
+                "Irritability": (1, "💢"),
+                "Cravings": (2, "🍫"),
+                "Sexual drive": (5, "💕"),
+                "Cognitive focus": (4, "🧠"),
+            },
+            "actions": [
+                "💬 Deep talk + appreciation hits hard (in a good way).",
+                "🌇 Date night energy. Compliments = critical hit.",
+                "📸 Social activities: friends, events, fun plans.",
+                "🔥 Intimacy & closeness are boosted today.",
+            ],
         }
-        recs = [
-            "Compliments land extra well now.",
-            "Great timing for deeper talks and intimacy.",
-            "Plan a social activity (dinner/event).",
-        ]
-        prognosis = "Peak window"
-    else:
-        stats = {
-            "Mood stability": "Low/Medium",
-            "Social drive": "Low/Medium",
-            "Emotional needs": "Reassurance + stability",
-            "Anxiety": "Medium/High",
-            "Irritability": "High",
-            "Cravings": "High (comfort food)",
-            "Sexual drive": "Medium",
-            "Cognitive focus": "Low/Medium",
-        }
-        recs = [
-            "Lower friction: fewer debates, calmer tone.",
-            "Don’t take sharpness personally. Offer reassurance.",
-            "Food: comfort meals, early night.",
-        ]
-        prognosis = "Potential PMS sensitivity"
+    # Luteal
+    return {
+        "prognosis": "Sensitivity rising - protect calm",
+        "stats": {
+            "Mood stability": (2, "🎭"),
+            "Social drive": (2, "🗣️"),
+            "Emotional needs": (4, "❤️"),
+            "Anxiety": (3, "🔥"),
+            "Irritability": (4, "💢"),
+            "Cravings": (4, "🍫"),
+            "Sexual drive": (3, "💕"),
+            "Cognitive focus": (2, "🧠"),
+        },
+        "actions": [
+            "🧘 Reduce friction: fewer decisions, more clarity.",
+            "🧩 Be steady. Don’t debate small stuff.",
+            "🍞 Food: comfort + magnesium (dark choc, nuts).",
+            "🧊 If conflict starts: pause, validate, soften tone.",
+        ],
+    }
 
-    return {"day": d, "phase": phase, "stats": stats, "recs": recs, "prognosis": prognosis}
 
-def menu_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("Today", callback_data="TODAY"),
-         InlineKeyboardButton("Status", callback_data="STATUS")],
-        [InlineKeyboardButton("Pause", callback_data="PAUSE"),
-         InlineKeyboardButton("Resume", callback_data="RESUME")],
-        [InlineKeyboardButton("Reset", callback_data="RESET")],
-    ])
+def build_today_card(profile: dict, today: dt.date) -> str:
+    day = cycle_day(profile, today)
+    length = profile["cycle_length"]
+    phase = phase_for(day, length)
+    p = phase_payload(phase)
+    pe = phase_emoji(phase)
 
-def format_today(profile: UserProfile) -> str:
-    p = day_payload(profile)
-    stats_lines = "\n".join([f"- {k}: {v}" for k, v in p["stats"].items()])
-    rec_lines = "\n".join([f"- {x}" for x in p["recs"]])
-    return (
-        f"Partner: {profile.partner_nick}\n"
-        f"Day {p['day']}/{profile.cycle_length} - {p['phase']}\n"
-        f"Prognosis: {p['prognosis']}\n\n"
-        f"Stats\n{stats_lines}\n\n"
-        f"Recommended actions\n{rec_lines}"
+    lines = []
+    lines.append(f"👋 Welcome back.")
+    lines.append(f"🧑‍🤝‍🧑 Partner: {profile['partner_name']}")
+    lines.append(f"{pe} Phase: {phase} (Day {day}/{length})")
+    lines.append(f"🧭 Prognosis: {p['prognosis']}")
+    lines.append("")
+    lines.append("🎮 Stats (HUD)")
+    for k, (v, em) in p["stats"].items():
+        lines.append(f"{em} {k}: {bar(v)}")
+    lines.append("")
+    lines.append("✅ Recommended actions")
+    for a in p["actions"]:
+        lines.append(f"- {a}")
+    return "\n".join(lines)
+
+
+# =========================
+# Notifications (stable MVP)
+# =========================
+async def ensure_job_loop(app, chat_id: int):
+    # Attach a repeating loop once per chat
+    if chat_id in JOBS_STARTED:
+        return
+
+    app.job_queue.run_repeating(
+        check_and_send_daily,
+        interval=30,   # every 30s
+        first=5,
+        data={"chat_id": chat_id},
+        name=f"daily-loop-{chat_id}",
     )
+    JOBS_STARTED.add(chat_id)
 
-async def ensure_daily_job(app: Application, profile: UserProfile) -> None:
-    # remove existing job
-    if profile.chat_id in jobs:
-        for j in app.job_queue.get_jobs_by_name(jobs[profile.chat_id]):
-            j.schedule_removal()
-        jobs.pop(profile.chat_id, None)
 
-    t = parse_hh_mm(profile.notify_time) or time(9, 0)
-    name = f"daily_{profile.chat_id}"
-    jobs[profile.chat_id] = name
-
-    app.job_queue.run_daily(
-        send_daily,
-        time=t,
-        days=(0, 1, 2, 3, 4, 5, 6),
-        name=name,
-        data={"chat_id": profile.chat_id},
-        timezone=TZ,
-    )
-
-async def send_daily(context: ContextTypes.DEFAULT_TYPE) -> None:
+async def check_and_send_daily(context: ContextTypes.DEFAULT_TYPE):
     chat_id = context.job.data["chat_id"]
-    profile = users.get(chat_id)
-    if not profile or profile.paused or not profile.partner_nick or not profile.period_start:
+    profile = PROFILES.get(chat_id)
+    if not profile:
         return
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text="Daily check-in\n\n" + format_today(profile),
-        reply_markup=menu_keyboard(),
+    if profile.get("paused"):
+        return
+
+    now = dt.datetime.now(TZ)
+    today = now.date()
+
+    # Match user's HH:MM in Stockholm time
+    notify_time: dt.time = profile["notify_time"]
+    if now.strftime("%H:%M") != notify_time.strftime("%H:%M"):
+        return
+
+    # Avoid duplicates same day
+    key = today.isoformat()
+    if LAST_SENT.get(chat_id) == key:
+        return
+
+    text = build_today_card(profile, today)
+    try:
+        await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=menu_markup())
+        LAST_SENT[chat_id] = key
+    except Exception:
+        # If Telegram fails, don't mark as sent
+        pass
+
+
+# =========================
+# Commands
+# =========================
+async def cmd_ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await send_text(update, f"🏓 pong (v{VERSION})")
+
+
+async def cmd_version(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await send_text(update, f"🧩 Daycue bot version: v{VERSION}")
+
+
+async def cmd_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await send_text(update, "🧭 Menu ready. Pick an action below.")
+
+
+async def cmd_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    ONBOARDING.pop(chat_id, None)
+    await send_text(update, "✅ Onboarding cancelled. Menu is active.")
+
+
+async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+
+    # If profile exists, show today + menu
+    if chat_id in PROFILES:
+        await ensure_job_loop(context.application, chat_id)
+        today = dt.datetime.now(TZ).date()
+        await send_text(update, build_today_card(PROFILES[chat_id], today))
+        return
+
+    # Start onboarding
+    ONBOARDING[chat_id] = {"step": 1, "temp": {}}
+    await send_text(update,
+        "👋 Welcome. Quick onboarding.\n\n"
+        "1/6 - Enter partner nickname (example: Anna)\n\n"
+        "Tip: type /cancel anytime to exit."
     )
 
-# -----------------------
-# Onboarding flow
-# -----------------------
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    chat_id = update.effective_chat.id
-    profile = get_or_create(chat_id)
 
-    if profile.partner_nick and profile.period_start:
-        await update.message.reply_text(
-            "Welcome back.\n\n" + format_today(profile),
-            reply_markup=menu_keyboard(),
+# =========================
+# Menu actions
+# =========================
+async def handle_menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
+    chat_id = update.effective_chat.id
+    profile = PROFILES.get(chat_id)
+
+    if text == "♻️ Reset":
+        PROFILES.pop(chat_id, None)
+        ONBOARDING.pop(chat_id, None)
+        LAST_SENT.pop(chat_id, None)
+        await send_text(update, "♻️ Reset done. Type /start to onboard again.")
+        return
+
+    if not profile:
+        await send_text(update, "🧪 No profile yet. Type /start to onboard.")
+        return
+
+    if text == "📅 Today":
+        today = dt.datetime.now(TZ).date()
+        await send_text(update, build_today_card(profile, today))
+        return
+
+    if text == "📊 Status":
+        paused = "⏸ Paused" if profile.get("paused") else "▶️ Active"
+        await send_text(update,
+            "📊 Status\n"
+            f"- Partner: {profile['partner_name']}\n"
+            f"- Cycle length: {profile['cycle_length']} days\n"
+            f"- Period start: {profile['period_start'].isoformat()}\n"
+            f"- Notify time: {profile['notify_time'].strftime('%H:%M')} (Stockholm)\n"
+            f"- Mode: {paused}"
         )
-        return ConversationHandler.END
+        return
 
-    await update.message.reply_text(
-        "Welcome. Quick onboarding.\n\n"
-        "1/6 - Enter partner nickname (example: Anna)"
-    )
-    return ASK_NICK
+    if text == "⏸ Pause":
+        profile["paused"] = True
+        await send_text(update, "⏸ Paused. No daily notifications will be sent.")
+        return
 
-async def on_nick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if text == "▶️ Resume":
+        profile["paused"] = False
+        await ensure_job_loop(context.application, chat_id)
+        await send_text(update, "▶️ Resumed. Daily notifications are active.")
+        return
+
+    if text == "🔔 Send now":
+        today = dt.datetime.now(TZ).date()
+        await send_text(update, "🔔 Sending now…")
+        await send_text(update, build_today_card(profile, today))
+        return
+
+    if text == "🔮 Forecast":
+        # Simple 4-day outlook (MVP)
+        today = dt.datetime.now(TZ).date()
+        lines = ["🔮 Forecast (next 4 days)"]
+        for i in range(0, 4):
+            d = today + dt.timedelta(days=i)
+            daynum = cycle_day(profile, d)
+            ph = phase_for(daynum, profile["cycle_length"])
+            lines.append(f"- {d.isoformat()} → {phase_emoji(ph)} {ph} (Day {daynum})")
+        await send_text(update, "\n".join(lines))
+        return
+
+    if text == "⚙️ Settings":
+        await send_text(update,
+            "⚙️ Settings (MVP)\n"
+            "- To change data: use /start (re-onboard) or ♻️ Reset.\n"
+            "- To stop onboarding: /cancel"
+        )
+        return
+
+    # Unknown button text
+    await send_text(update, "🤖 I didn’t recognize that button. Try /menu.")
+
+
+# =========================
+# Onboarding handler
+# =========================
+async def handle_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE, user_text: str):
     chat_id = update.effective_chat.id
-    profile = get_or_create(chat_id)
+    state = ONBOARDING.get(chat_id)
+    if not state:
+        return
 
-    nick = (update.message.text or "").strip()
-    if len(nick) < 2:
-        await update.message.reply_text("Nickname too short. Try again (example: Anna).")
-        return ASK_NICK
+    step = state["step"]
+    temp = state["temp"]
 
-    profile.partner_nick = nick
-    await update.message.reply_text("2/6 - Partner DOB (YYYY-MM-DD) or type 'skip'")
-    return ASK_DOB
+    # Step 1: nickname
+    if step == 1:
+        name = user_text.strip()
+        if len(name) < 2:
+            await send_text(update, "❌ Nickname too short. Try again (example: Anna).")
+            return
+        temp["partner_name"] = name
+        state["step"] = 2
+        await send_text(update, "2/6 - Partner DOB (YYYY-MM-DD) or type 'skip'")
+        return
 
-async def on_dob(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    chat_id = update.effective_chat.id
-    profile = get_or_create(chat_id)
+    # Step 2: dob or skip
+    if step == 2:
+        if user_text.strip().lower() == "skip":
+            temp["partner_dob"] = None
+        else:
+            dob = parse_date(user_text)
+            if not dob:
+                await send_text(update, "❌ Invalid date. Use YYYY-MM-DD or type 'skip'")
+                return
+            temp["partner_dob"] = dob.isoformat()
+        state["step"] = 3
+        await send_text(update, "3/6 - Last period START date (YYYY-MM-DD)")
+        return
 
-    txt = (update.message.text or "").strip().lower()
-    if txt == "skip":
-        profile.partner_dob = None
-    else:
-        d = parse_yyyy_mm_dd(txt)
+    # Step 3: period start
+    if step == 3:
+        d = parse_date(user_text)
         if not d:
-            await update.message.reply_text("Invalid format. Use YYYY-MM-DD or type 'skip'.")
-            return ASK_DOB
-        profile.partner_dob = d.strftime("%Y-%m-%d")
-
-    await update.message.reply_text("3/6 - Last period START date (YYYY-MM-DD)")
-    return ASK_START
-
-async def on_start_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    chat_id = update.effective_chat.id
-    profile = get_or_create(chat_id)
-
-    d = parse_yyyy_mm_dd(update.message.text or "")
-    if not d:
-        await update.message.reply_text("Invalid date. Use YYYY-MM-DD.")
-        return ASK_START
-
-    profile.period_start = d.strftime("%Y-%m-%d")
-    await update.message.reply_text("4/6 - Last period END date (YYYY-MM-DD)")
-    return ASK_END
-
-async def on_end_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    chat_id = update.effective_chat.id
-    profile = get_or_create(chat_id)
-
-    d = parse_yyyy_mm_dd(update.message.text or "")
-    if not d:
-        await update.message.reply_text("Invalid date. Use YYYY-MM-DD.")
-        return ASK_END
-
-    start = parse_yyyy_mm_dd(profile.period_start or "")
-    if start and d < start:
-        await update.message.reply_text("End date can’t be before start date. Try again.")
-        return ASK_END
-
-    profile.period_end = d.strftime("%Y-%m-%d")
-    await update.message.reply_text("5/6 - Cycle length in days (21-35). Example: 28")
-    return ASK_CYCLE
-
-async def on_cycle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    chat_id = update.effective_chat.id
-    profile = get_or_create(chat_id)
-
-    txt = (update.message.text or "").strip()
-    if not txt.isdigit():
-        await update.message.reply_text("Please enter a number (example: 28).")
-        return ASK_CYCLE
-
-    n = int(txt)
-    if n < 21 or n > 35:
-        await update.message.reply_text("For MVP, use 21-35.")
-        return ASK_CYCLE
-
-    profile.cycle_length = n
-    await update.message.reply_text("6/6 - Daily notification time (HH:MM). Example: 09:00")
-    return ASK_NOTIFY
-
-async def on_notify(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    chat_id = update.effective_chat.id
-    profile = get_or_create(chat_id)
-
-    t = parse_hh_mm(update.message.text or "")
-    if not t:
-        await update.message.reply_text("Invalid time. Use HH:MM (example: 09:00).")
-        return ASK_NOTIFY
-
-    profile.notify_time = f"{t.hour:02d}:{t.minute:02d}"
-
-    # schedule daily message
-    await ensure_daily_job(context.application, profile)
-
-    await update.message.reply_text(
-        "Setup complete.\n\n" + format_today(profile),
-        reply_markup=menu_keyboard(),
-    )
-    return ConversationHandler.END
-
-# -----------------------
-# Menu callbacks
-# -----------------------
-async def on_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    q = update.callback_query
-    await q.answer()
-
-    chat_id = q.message.chat_id
-    profile = users.get(chat_id)
-
-    if q.data == "RESET":
-        users.pop(chat_id, None)
-        if chat_id in jobs:
-            for j in context.application.job_queue.get_jobs_by_name(jobs[chat_id]):
-                j.schedule_removal()
-            jobs.pop(chat_id, None)
-        await q.message.reply_text("Reset done. Type /start to set up again.")
+            await send_text(update, "❌ Invalid date. Use YYYY-MM-DD.")
+            return
+        temp["period_start"] = d
+        state["step"] = 4
+        await send_text(update, "4/6 - Last period END date (YYYY-MM-DD)")
         return
 
-    if not profile or not profile.partner_nick or not profile.period_start:
-        await q.message.reply_text("Not set up yet. Type /start to begin.")
+    # Step 4: period end
+    if step == 4:
+        d = parse_date(user_text)
+        if not d:
+            await send_text(update, "❌ Invalid date. Use YYYY-MM-DD.")
+            return
+        if d < temp["period_start"]:
+            await send_text(update, "❌ End date can’t be before start date. Try again (YYYY-MM-DD).")
+            return
+        temp["period_end"] = d
+        state["step"] = 5
+        await send_text(update, "5/6 - Cycle length in days (21-35). Example: 28")
         return
 
-    if q.data == "TODAY":
-        await q.message.reply_text(format_today(profile), reply_markup=menu_keyboard())
+    # Step 5: cycle length
+    if step == 5:
+        m = re.match(r"^\d+$", user_text.strip())
+        if not m:
+            await send_text(update, "❌ Enter a number (21-35). Example: 28")
+            return
+        length = int(user_text.strip())
+        if length < 21 or length > 35:
+            await send_text(update, "❌ Cycle length must be 21-35. Try again.")
+            return
+        temp["cycle_length"] = length
+        state["step"] = 6
+        await send_text(update, "6/6 - Daily notification time (HH:MM). Example: 09:00")
         return
 
-    if q.data == "STATUS":
-        d = cycle_day(profile)
-        await q.message.reply_text(
-            f"Status\n- Partner: {profile.partner_nick}\n- Day: {d}/{profile.cycle_length}\n"
-            f"- Phase: {phase_for_day(d, profile.cycle_length)}\n"
-            f"- Notify: {profile.notify_time}\n- Paused: {profile.paused}",
-            reply_markup=menu_keyboard(),
+    # Step 6: notify time
+    if step == 6:
+        t = parse_time(user_text)
+        if not t:
+            await send_text(update, "❌ Invalid time. Use HH:MM. Example: 09:00")
+            return
+
+        # Save profile
+        profile = {
+            "partner_name": temp["partner_name"],
+            "partner_dob": temp.get("partner_dob"),
+            "period_start": temp["period_start"],
+            "period_end": temp["period_end"],
+            "cycle_length": temp["cycle_length"],
+            "notify_time": t,
+            "paused": False,
+        }
+        PROFILES[chat_id] = profile
+        ONBOARDING.pop(chat_id, None)
+
+        await ensure_job_loop(context.application, chat_id)
+
+        await send_text(update,
+            "🎉 Setup complete!\n"
+            "✅ Menu is active below.\n"
+            "🔔 Daily notifications will arrive at your chosen time (Stockholm).\n\n"
+            "Tip: press 🔔 Send now to test instantly."
         )
+        today = dt.datetime.now(TZ).date()
+        await send_text(update, build_today_card(profile, today))
         return
 
-    if q.data == "PAUSE":
-        profile.paused = True
-        await q.message.reply_text("Paused. No daily messages.", reply_markup=menu_keyboard())
+
+# =========================
+# Router (very important)
+# =========================
+async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_text = (update.message.text or "").strip()
+    chat_id = update.effective_chat.id
+
+    # 1) Global commands should always work (Telegram sends commands to CommandHandlers too,
+    # but in case user typed like normal text "/menu" etc.)
+    if user_text in ("/menu",):
+        await cmd_menu(update, context)
+        return
+    if user_text in ("/cancel",):
+        await cmd_cancel(update, context)
+        return
+    if user_text in ("/start",):
+        await cmd_start(update, context)
+        return
+    if user_text in ("/ping",):
+        await cmd_ping(update, context)
+        return
+    if user_text in ("/version",):
+        await cmd_version(update, context)
         return
 
-    if q.data == "RESUME":
-        profile.paused = False
-        await q.message.reply_text("Resumed. Daily messages ON.", reply_markup=menu_keyboard())
+    # 2) If onboarding active, handle onboarding BUT do not "kill" menu forever:
+    # the menu is still attached to replies, and /cancel works.
+    if chat_id in ONBOARDING:
+        await handle_onboarding(update, context, user_text)
         return
 
-# -----------------------
-# Build app
-# -----------------------
-def build_app() -> Application:
+    # 3) Otherwise treat as menu press
+    await handle_menu_action(update, context, user_text)
+
+
+def main():
+    print("BOOT: starting bot.py")
     app = ApplicationBuilder().token(TOKEN).build()
 
-    conv = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
-        states={
-            ASK_NICK: [MessageHandler(filters.TEXT & ~filters.COMMAND, on_nick)],
-            ASK_DOB: [MessageHandler(filters.TEXT & ~filters.COMMAND, on_dob)],
-            ASK_START: [MessageHandler(filters.TEXT & ~filters.COMMAND, on_start_date)],
-            ASK_END: [MessageHandler(filters.TEXT & ~filters.COMMAND, on_end_date)],
-            ASK_CYCLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, on_cycle)],
-            ASK_NOTIFY: [MessageHandler(filters.TEXT & ~filters.COMMAND, on_notify)],
-        },
-        fallbacks=[CommandHandler("start", start)],
-        allow_reentry=True,
-    )
+    # Commands
+    app.add_handler(CommandHandler("start", cmd_start))
+    app.add_handler(CommandHandler("menu", cmd_menu))
+    app.add_handler(CommandHandler("cancel", cmd_cancel))
+    app.add_handler(CommandHandler("ping", cmd_ping))
+    app.add_handler(CommandHandler("version", cmd_version))
 
-    app.add_handler(conv)
-    app.add_handler(CallbackQueryHandler(on_menu))
+    # Text router
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
+    # Also handle commands typed as plain text in some clients
+    app.add_handler(MessageHandler(filters.TEXT, on_text))
 
-    return app
-
-def main() -> None:
-    print("BOOT: starting bot.py", flush=True)
-    app = build_app()
     app.run_polling(close_loop=False)
+
 
 if __name__ == "__main__":
     main()

@@ -13,11 +13,9 @@ primary_region = 'arn'
   PORT = '8080'
 
 [http_service]
-  auto_start_machines = true
-  auto_stop_machines = false
-  internal_port = 8080
-  min_machines_running = 1
-  processes = ["app"]
+auto_start_machines = true
+auto_stop_machines = false
+min_machines_running = 1
 
 [[vm]]
   memory = '1gb'

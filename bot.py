@@ -7,7 +7,7 @@ if not TOKEN:
     sys.exit(1)
 
 import os
-import sqlite3
+
 from datetime import datetime, date
 from dateutil.parser import isoparse
 from apscheduler.schedulers.asyncio import AsyncIOScheduler

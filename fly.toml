@@ -13,7 +13,6 @@ primary_region = 'arn'
   PORT = '8080'
 
 [http_service]
-auto_start_machines = true
 auto_stop_machines = false
 min_machines_running = 1
 

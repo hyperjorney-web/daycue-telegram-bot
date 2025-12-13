@@ -1,452 +1,551 @@
 import os
 import sys
-import asyncio
+import re
+import json
+import datetime as dt
 from dataclasses import dataclass
-from datetime import datetime, date, time, timedelta
 from zoneinfo import ZoneInfo
 
-from telegram import Update, ReplyKeyboardMarkup
+from telegram import (
+    Update,
+    ReplyKeyboardMarkup,
+    KeyboardButton,
+)
 from telegram.ext import (
-    Application, CommandHandler, MessageHandler,
-    ContextTypes, filters
+    ApplicationBuilder,
+    CommandHandler,
+    MessageHandler,
+    ContextTypes,
+    filters,
 )
 
 # =========================
 # Config
 # =========================
-APP_VERSION = "0.9.1"
+VERSION = "0.9.2"
 TZ = ZoneInfo("Europe/Stockholm")
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 if not TOKEN:
-    print("ERROR: TELEGRAM_BOT_TOKEN is missing")
+    print("ERROR: TELEGRAM_BOT_TOKEN is missing (set it as a Fly secret)")
     sys.exit(1)
 
-# =========================
-# Data (MVP: in-memory)
-# =========================
-@dataclass
-class Profile:
-    chat_id: int
-    partner_name: str
-    partner_dob: str | None
-    period_start: str
-    period_end: str
-    cycle_length: int
-    notify_time: str
-    paused: bool = False
-    last_sent_date: str | None = None
+# In-memory storage (MVP)
+PROFILES: dict[int, dict] = {}        # chat_id -> profile dict
+ONBOARDING: dict[int, dict] = {}      # chat_id -> {step:int, temp:dict}
+LAST_SENT: dict[int, str] = {}        # chat_id -> YYYY-MM-DD last daily sent
+JOBS_STARTED: set[int] = set()        # chat_ids that have job loop attached
 
-PROFILES: dict[int, Profile] = {}
-ONBOARDING_STATE: dict[int, dict] = {}  # chat_id -> {"step": int, "data": {...}}
 
 # =========================
-# UI: Persistent menu
+# UI helpers
 # =========================
-def main_menu():
-    return ReplyKeyboardMarkup(
-        [
-            ["🧭 Idag", "🔮 Prognos"],
-            ["⚙️ Inställningar", "🔔 Skicka nu"],
-            ["⏸️ Pausa", "▶️ Starta"],
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=False,
-        is_persistent=True,              # IMPORTANT
-        input_field_placeholder="Välj i menyn eller skriv /menu"
-    )
-
-def settings_menu():
-    return ReplyKeyboardMarkup(
-        [
-            ["✏️ Ändra cykeldata", "🕒 Ändra notistid"],
-            ["⬅️ Tillbaka"],
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=False,
-        is_persistent=True,
-    )
-
-# =========================
-# Helpers
-# =========================
-def parse_yyyy_mm_dd(s: str) -> date | None:
-    try:
-        return datetime.strptime(s.strip(), "%Y-%m-%d").date()
-    except Exception:
-        return None
-
-def parse_hh_mm(s: str) -> time | None:
-    try:
-        return datetime.strptime(s.strip(), "%H:%M").time()
-    except Exception:
-        return None
-
-def cycle_day_for(profile: Profile, on_date: date) -> int:
-    start = parse_yyyy_mm_dd(profile.period_start)
-    if not start:
-        return 1
-    delta = (on_date - start).days
-    return (delta % profile.cycle_length) + 1
-
-def phase_for(profile: Profile, day_no: int) -> str:
-    L = profile.cycle_length
-    menstrual_end = max(4, round(L * 0.18))
-    ovulation_start = round(L * 0.45)
-    ovulation_end = min(L, ovulation_start + 2)
-    follicular_end = ovulation_start - 1
-
-    if day_no <= menstrual_end:
-        return "🩸 Menstruation"
-    if day_no <= follicular_end:
-        return "🌱 Follikulär"
-    if ovulation_start <= day_no <= ovulation_end:
-        return "🔥 Ägglossning"
-    return "🌙 Luteal"
-
-def score_bar(label: str, emoji: str, value_0_100: int) -> str:
-    blocks = int(round(value_0_100 / 10))
-    bar = "█" * blocks + "░" * (10 - blocks)
-    return f"{emoji} {label}: {bar} {value_0_100}/100"
-
-def stats_for_phase(phase: str) -> dict:
-    if "Menstruation" in phase:
-        return {"Mood": ("🎭", 45), "Social": ("🗣️", 35), "Needs": ("❤️", 75), "Anxiety": ("🔥", 55),
-                "Irritability": ("💢", 60), "Cravings": ("🍩", 80), "Libido": ("💕", 30), "Focus": ("🧠", 40),
-                "tips": ["🫖 Värme + vila", "🧘 Lugn rörelse", "🤝 Ta lead på vardag"]}
-    if "Follikulär" in phase:
-        return {"Mood": ("🎭", 75), "Social": ("🗣️", 75), "Needs": ("❤️", 55), "Anxiety": ("🔥", 30),
-                "Irritability": ("💢", 25), "Cravings": ("🍩", 30), "Libido": ("💕", 55), "Focus": ("🧠", 80),
-                "tips": ["🎯 Planera + bygg momentum", "🏃 Aktivitet ihop", "💬 Pepp + framtidssnack"]}
-    if "Ägglossning" in phase:
-        return {"Mood": ("🎭", 85), "Social": ("🗣️", 90), "Needs": ("❤️", 60), "Anxiety": ("🔥", 20),
-                "Irritability": ("💢", 15), "Cravings": ("🍩", 35), "Libido": ("💕", 90), "Focus": ("🧠", 70),
-                "tips": ["🌹 Komplimanger (specifikt!)", "🍽️ Date / socialt", "🔥 Närhet + lekfullhet"]}
-    return {"Mood": ("🎭", 40), "Social": ("🗣️", 40), "Needs": ("❤️", 80), "Anxiety": ("🔥", 60),
-            "Irritability": ("💢", 75), "Cravings": ("🍩", 85), "Libido": ("💕", 50), "Focus": ("🧠", 35),
-            "tips": ["🧩 Förenkla vardagen", "🥣 Comfort + snäll ton", "🛡️ Undvik onödiga konflikter"]}
-
-def build_today_message(profile: Profile) -> str:
-    today = datetime.now(TZ).date()
-    d = cycle_day_for(profile, today)
-    phase = phase_for(profile, d)
-    s = stats_for_phase(phase)
-
-    lines = [
-        f"📅 Idag: {today.isoformat()} | Dag {d}/{profile.cycle_length}",
-        f"🧬 Fas: {phase}",
-        "",
-        score_bar("Mood", *s["Mood"]),
-        score_bar("Social Drive", *s["Social"]),
-        score_bar("Emotional Needs", *s["Needs"]),
-        score_bar("Anxiety", *s["Anxiety"]),
-        score_bar("Irritability", *s["Irritability"]),
-        score_bar("Cravings", *s["Cravings"]),
-        score_bar("Sexual Drive", *s["Libido"]),
-        score_bar("Focus", *s["Focus"]),
-        "",
-        "🎒 Tips:",
-        *[f"• {t}" for t in s["tips"]],
+def menu_markup() -> ReplyKeyboardMarkup:
+    rows = [
+        [KeyboardButton("📅 Today"), KeyboardButton("🔮 Forecast")],
+        [KeyboardButton("🔔 Send now"), KeyboardButton("📊 Status")],
+        [KeyboardButton("⏸ Pause"), KeyboardButton("▶️ Resume")],
+        [KeyboardButton("♻️ Reset"), KeyboardButton("⚙️ Settings")],
     ]
+    return ReplyKeyboardMarkup(rows, resize_keyboard=True)
+
+
+async def send_text(update: Update, text: str, context: ContextTypes.DEFAULT_TYPE):
+    # Always attach the menu so it never “disappears”
+    await update.effective_chat.send_message(text=text, reply_markup=menu_markup())
+
+
+def parse_date(s: str) -> dt.date | None:
+    try:
+        return dt.datetime.strptime(s.strip(), "%Y-%m-%d").date()
+    except Exception:
+        return None
+
+
+def parse_time(s: str) -> dt.time | None:
+    try:
+        return dt.datetime.strptime(s.strip(), "%H:%M").time()
+    except Exception:
+        return None
+
+
+def clamp(n: int, lo: int, hi: int) -> int:
+    return max(lo, min(hi, n))
+
+
+def bar(value_1_to_5: int) -> str:
+    v = clamp(value_1_to_5, 1, 5)
+    return "▰" * v + "▱" * (5 - v)
+
+
+# =========================
+# Cycle logic (simple MVP)
+# =========================
+def cycle_day(profile: dict, today: dt.date) -> int:
+    start: dt.date = profile["period_start"]
+    length: int = profile["cycle_length"]
+    delta = (today - start).days
+    return (delta % length) + 1
+
+
+def phase_for(day: int, length: int) -> str:
+    # MVP ranges, reasonable default:
+    # Menstrual: 1-5
+    # Follicular: 6-13
+    # Ovulatory: 14-17
+    # Luteal: 18-end
+    if day <= 5:
+        return "Menstrual"
+    if 6 <= day <= 13:
+        return "Follicular"
+    if 14 <= day <= 17:
+        return "Ovulatory"
+    return "Luteal"
+
+
+def phase_emoji(phase: str) -> str:
+    return {
+        "Menstrual": "🩸",
+        "Follicular": "🌱",
+        "Ovulatory": "🔥",
+        "Luteal": "🌙",
+    }.get(phase, "✨")
+
+
+def phase_payload(phase: str) -> dict:
+    # Values are 1-5 for easy “game HUD” bars
+    if phase == "Menstrual":
+        return {
+            "prognosis": "Low energy window",
+            "stats": {
+                "Mood stability": (2, "🎭"),
+                "Social drive": (2, "🗣️"),
+                "Emotional needs": (4, "❤️"),
+                "Anxiety": (3, "🔥"),
+                "Irritability": (3, "💢"),
+                "Cravings": (5, "🍫"),
+                "Sexual drive": (2, "💕"),
+                "Cognitive focus": (2, "🧠"),
+            },
+            "actions": [
+                "🤝 Keep plans light. Offer help + warmth.",
+                "🫶 Ask: comfort or space?",
+                "🍲 Food: soup, tea, chocolate, cozy dinner.",
+                "🛌 Protect sleep and downtime.",
+            ],
+        }
+    if phase == "Follicular":
+        return {
+            "prognosis": "Energy rising + optimistic tone",
+            "stats": {
+                "Mood stability": (4, "🎭"),
+                "Social drive": (4, "🗣️"),
+                "Emotional needs": (3, "❤️"),
+                "Anxiety": (2, "🔥"),
+                "Irritability": (2, "💢"),
+                "Cravings": (2, "🍫"),
+                "Sexual drive": (3, "💕"),
+                "Cognitive focus": (4, "🧠"),
+            },
+            "actions": [
+                "🎯 Plan active stuff: walk, gym, mini-adventure.",
+                "🗓️ Great for decisions + planning.",
+                "🌿 Food: fresh, protein, crunchy snacks.",
+                "😄 Keep it playful. Encourage new experiences.",
+            ],
+        }
+    if phase == "Ovulatory":
+        return {
+            "prognosis": "Peak charisma + connection window",
+            "stats": {
+                "Mood stability": (5, "🎭"),
+                "Social drive": (5, "🗣️"),
+                "Emotional needs": (4, "❤️"),
+                "Anxiety": (1, "🔥"),
+                "Irritability": (1, "💢"),
+                "Cravings": (2, "🍫"),
+                "Sexual drive": (5, "💕"),
+                "Cognitive focus": (4, "🧠"),
+            },
+            "actions": [
+                "💬 Deep talk + appreciation hits hard (in a good way).",
+                "🌇 Date night energy. Compliments = critical hit.",
+                "📸 Social activities: friends, events, fun plans.",
+                "🔥 Intimacy & closeness are boosted today.",
+            ],
+        }
+    # Luteal
+    return {
+        "prognosis": "Sensitivity rising - protect calm",
+        "stats": {
+            "Mood stability": (2, "🎭"),
+            "Social drive": (2, "🗣️"),
+            "Emotional needs": (4, "❤️"),
+            "Anxiety": (3, "🔥"),
+            "Irritability": (4, "💢"),
+            "Cravings": (4, "🍫"),
+            "Sexual drive": (3, "💕"),
+            "Cognitive focus": (2, "🧠"),
+        },
+        "actions": [
+            "🧘 Reduce friction: fewer decisions, more clarity.",
+            "🧩 Be steady. Don’t debate small stuff.",
+            "🍞 Food: comfort + magnesium (dark choc, nuts).",
+            "🧊 If conflict starts: pause, validate, soften tone.",
+        ],
+    }
+
+
+def build_today_card(profile: dict, today: dt.date) -> str:
+    day = cycle_day(profile, today)
+    length = profile["cycle_length"]
+    phase = phase_for(day, length)
+    p = phase_payload(phase)
+    pe = phase_emoji(phase)
+
+    lines = []
+    lines.append(f"👋 Welcome back.")
+    lines.append(f"🧑‍🤝‍🧑 Partner: {profile['partner_name']}")
+    lines.append(f"{pe} Phase: {phase} (Day {day}/{length})")
+    lines.append(f"🧭 Prognosis: {p['prognosis']}")
+    lines.append("")
+    lines.append("🎮 Stats (HUD)")
+    for k, (v, em) in p["stats"].items():
+        lines.append(f"{em} {k}: {bar(v)}")
+    lines.append("")
+    lines.append("✅ Recommended actions")
+    for a in p["actions"]:
+        lines.append(f"- {a}")
     return "\n".join(lines)
 
-def build_forecast_message(profile: Profile) -> str:
-    base = datetime.now(TZ).date()
-    out = ["🔮 Prognos (7 dagar):"]
-    for i in range(7):
-        day = base + timedelta(days=i)
-        d = cycle_day_for(profile, day)
-        out.append(f"• {day.isoformat()} — Dag {d}: {phase_for(profile, d)}")
-    return "\n".join(out)
 
-def profile_summary(profile: Profile) -> str:
-    return (
-        "⚙️ Dina inställningar:\n"
-        f"• Partner: {profile.partner_name}\n"
-        f"• DOB: {profile.partner_dob or 'skip'}\n"
-        f"• Period start: {profile.period_start}\n"
-        f"• Period end: {profile.period_end}\n"
-        f"• Cykellängd: {profile.cycle_length}\n"
-        f"• Notistid: {profile.notify_time}\n"
-        f"• Pausad: {'ja' if profile.paused else 'nej'}"
+# =========================
+# Notifications (stable MVP)
+# =========================
+async def ensure_job_loop(app, chat_id: int):
+    # Attach a repeating loop once per chat
+    if chat_id in JOBS_STARTED:
+        return
+
+    app.job_queue.run_repeating(
+        check_and_send_daily,
+        interval=30,   # every 30s
+        first=5,
+        data={"chat_id": chat_id},
+        name=f"daily-loop-{chat_id}",
     )
+    JOBS_STARTED.add(chat_id)
 
-# =========================
-# Onboarding
-# =========================
-def start_onboarding(chat_id: int):
-    ONBOARDING_STATE[chat_id] = {"step": 1, "data": {}}
 
-async def onboarding_prompt(update: Update):
-    chat_id = update.effective_chat.id
-    st = ONBOARDING_STATE.get(chat_id)
-    if not st:
-        start_onboarding(chat_id)
-        st = ONBOARDING_STATE[chat_id]
-
-    step = st["step"]
-    prompts = {
-        1: "1/6 - Enter partner nickname (example: Anna)",
-        2: "2/6 - Partner DOB (YYYY-MM-DD) or type 'skip'",
-        3: "3/6 - Last period START date (YYYY-MM-DD)",
-        4: "4/6 - Last period END date (YYYY-MM-DD)",
-        5: "5/6 - Cycle length in days (21-35). Example: 28",
-        6: "6/6 - Daily notification time (HH:MM). Example: 09:00",
-    }
-    if step == 1:
-        await update.message.reply_text(
-            f"Welcome. Quick onboarding. 🧪 v{APP_VERSION}\n\n{prompts[1]}",
-            reply_markup=main_menu()
-        )
-    else:
-        await update.message.reply_text(prompts[step], reply_markup=main_menu())
-
-async def handle_onboarding_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    txt = (update.message.text or "").strip()
-
-    st = ONBOARDING_STATE.get(chat_id)
-    if not st:
-        start_onboarding(chat_id)
-        st = ONBOARDING_STATE[chat_id]
-
-    step = st["step"]
-    data = st["data"]
-
-    if step == 1:
-        data["partner_name"] = txt if txt else "Partner"
-        st["step"] = 2
-        await onboarding_prompt(update)
+async def check_and_send_daily(context: ContextTypes.DEFAULT_TYPE):
+    chat_id = context.job.data["chat_id"]
+    profile = PROFILES.get(chat_id)
+    if not profile:
+        return
+    if profile.get("paused"):
         return
 
-    if step == 2:
-        if txt.lower() == "skip":
-            data["partner_dob"] = None
-        else:
-            d = parse_yyyy_mm_dd(txt)
-            if not d:
-                await update.message.reply_text("Fel format. Ex: 1987-08-16 eller 'skip'", reply_markup=main_menu())
-                return
-            data["partner_dob"] = d.isoformat()
-        st["step"] = 3
-        await onboarding_prompt(update)
+    now = dt.datetime.now(TZ)
+    today = now.date()
+
+    # Match user's HH:MM in Stockholm time
+    notify_time: dt.time = profile["notify_time"]
+    if now.strftime("%H:%M") != notify_time.strftime("%H:%M"):
         return
 
-    if step == 3:
-        d = parse_yyyy_mm_dd(txt)
-        if not d:
-            await update.message.reply_text("Fel format. Ex: 2025-12-09", reply_markup=main_menu())
-            return
-        data["period_start"] = d.isoformat()
-        st["step"] = 4
-        await onboarding_prompt(update)
+    # Avoid duplicates same day
+    key = today.isoformat()
+    if LAST_SENT.get(chat_id) == key:
         return
 
-    if step == 4:
-        d = parse_yyyy_mm_dd(txt)
-        if not d:
-            await update.message.reply_text("Fel format. Ex: 2025-12-13", reply_markup=main_menu())
-            return
-        data["period_end"] = d.isoformat()
-        st["step"] = 5
-        await onboarding_prompt(update)
-        return
-
-    if step == 5:
-        try:
-            L = int(txt)
-        except Exception:
-            await update.message.reply_text("Skriv en siffra 21-35. Ex: 28", reply_markup=main_menu())
-            return
-        if L < 21 or L > 35:
-            await update.message.reply_text("Cykellängd måste vara 21-35.", reply_markup=main_menu())
-            return
-        data["cycle_length"] = L
-        st["step"] = 6
-        await onboarding_prompt(update)
-        return
-
-    if step == 6:
-        t = parse_hh_mm(txt)
-        if not t:
-            await update.message.reply_text("Fel format. Ex: 09:00", reply_markup=main_menu())
-            return
-        data["notify_time"] = t.strftime("%H:%M")
-
-        PROFILES[chat_id] = Profile(
-            chat_id=chat_id,
-            partner_name=data["partner_name"],
-            partner_dob=data.get("partner_dob"),
-            period_start=data["period_start"],
-            period_end=data["period_end"],
-            cycle_length=data["cycle_length"],
-            notify_time=data["notify_time"],
-            paused=False,
-            last_sent_date=None,
-        )
-        ONBOARDING_STATE.pop(chat_id, None)
-
-        # Double-confirm menu (some clients hide it unless re-sent)
-        await update.message.reply_text("✅ Setup complete. Menu is now active.", reply_markup=main_menu())
-        await update.message.reply_text(profile_summary(PROFILES[chat_id]), reply_markup=main_menu())
-        await update.message.reply_text(build_today_message(PROFILES[chat_id]), reply_markup=main_menu())
-        return
-
-# =========================
-# Notifications loop
-# =========================
-async def send_daily_ping(app: Application, profile: Profile, force: bool = False):
-    if profile.paused and not force:
-        return
-
-    now = datetime.now(TZ)
-    today_str = now.date().isoformat()
-
-    if not force and profile.last_sent_date == today_str:
-        return
-
-    msg = "🔔 Dagens cue\n\n" + build_today_message(profile)
+    text = build_today_card(profile, today)
     try:
-        await app.bot.send_message(chat_id=profile.chat_id, text=msg, reply_markup=main_menu())
-        if not force:
-            profile.last_sent_date = today_str
-    except Exception as e:
-        print(f"send_message failed for {profile.chat_id}: {e}")
+        await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=menu_markup())
+        LAST_SENT[chat_id] = key
+    except Exception:
+        # If Telegram fails, don't mark as sent
+        pass
 
-async def notifier_loop(app: Application):
-    print("BOOT: notifier loop started")
-    while True:
-        try:
-            now = datetime.now(TZ)
-            hhmm = now.strftime("%H:%M")
-            for profile in list(PROFILES.values()):
-                if profile.paused:
-                    continue
-                if profile.notify_time == hhmm:
-                    await send_daily_ping(app, profile, force=False)
-        except Exception as e:
-            print(f"notifier_loop error: {e}")
-        await asyncio.sleep(30)
 
 # =========================
 # Commands
 # =========================
-async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def cmd_ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await send_text(update, f"🏓 pong (v{VERSION})")
+
+
+async def cmd_version(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await send_text(update, f"🧩 Daycue bot version: v{VERSION}")
+
+
+async def cmd_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await send_text(update, "🧭 Menu ready. Pick an action below.")
+
+
+async def cmd_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    await update.message.reply_text("🧭 Menu active. If you don’t see it, type /menu.", reply_markup=main_menu())
-    if chat_id not in PROFILES:
-        start_onboarding(chat_id)
-        await onboarding_prompt(update)
-    else:
-        await update.message.reply_text(build_today_message(PROFILES[chat_id]), reply_markup=main_menu())
+    ONBOARDING.pop(chat_id, None)
+    await send_text(update, "✅ Onboarding cancelled. Menu is active.")
 
-async def menu_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🧭 Here’s your menu.", reply_markup=main_menu())
 
-async def ping_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    if chat_id not in PROFILES:
-        await update.message.reply_text("Du behöver onboarding först. Skriv /start", reply_markup=main_menu())
+
+    # If profile exists, show today + menu
+    if chat_id in PROFILES:
+        await ensure_job_loop(context.application, chat_id)
+        today = dt.datetime.now(TZ).date()
+        await send_text(update, build_today_card(PROFILES[chat_id], today))
         return
-    await send_daily_ping(context.application, PROFILES[chat_id], force=True)
-    await update.message.reply_text("✅ Sent a test notification now.", reply_markup=main_menu())
 
-async def version_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(f"🧪 daycue v{APP_VERSION} running", reply_markup=main_menu())
+    # Start onboarding
+    ONBOARDING[chat_id] = {"step": 1, "temp": {}}
+    await send_text(update,
+        "👋 Welcome. Quick onboarding.\n\n"
+        "1/6 - Enter partner nickname (example: Anna)\n\n"
+        "Tip: type /cancel anytime to exit."
+    )
+
 
 # =========================
-# Menu routing
+# Menu actions
 # =========================
-async def menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
     chat_id = update.effective_chat.id
-    txt = (update.message.text or "").strip()
+    profile = PROFILES.get(chat_id)
 
-    # onboarding mode
-    if chat_id in ONBOARDING_STATE:
-        await handle_onboarding_input(update, context)
+    if text == "♻️ Reset":
+        PROFILES.pop(chat_id, None)
+        ONBOARDING.pop(chat_id, None)
+        LAST_SENT.pop(chat_id, None)
+        await send_text(update, "♻️ Reset done. Type /start to onboard again.")
         return
 
-    # no profile yet => start onboarding
-    if chat_id not in PROFILES:
-        start_onboarding(chat_id)
-        await onboarding_prompt(update)
+    if not profile:
+        await send_text(update, "🧪 No profile yet. Type /start to onboard.")
         return
 
-    profile = PROFILES[chat_id]
-
-    if txt == "🧭 Idag":
-        await update.message.reply_text(build_today_message(profile), reply_markup=main_menu())
+    if text == "📅 Today":
+        today = dt.datetime.now(TZ).date()
+        await send_text(update, build_today_card(profile, today))
         return
 
-    if txt == "🔮 Prognos":
-        await update.message.reply_text(build_forecast_message(profile), reply_markup=main_menu())
+    if text == "📊 Status":
+        paused = "⏸ Paused" if profile.get("paused") else "▶️ Active"
+        await send_text(update,
+            "📊 Status\n"
+            f"- Partner: {profile['partner_name']}\n"
+            f"- Cycle length: {profile['cycle_length']} days\n"
+            f"- Period start: {profile['period_start'].isoformat()}\n"
+            f"- Notify time: {profile['notify_time'].strftime('%H:%M')} (Stockholm)\n"
+            f"- Mode: {paused}"
+        )
         return
 
-    if txt == "⚙️ Inställningar":
-        await update.message.reply_text(profile_summary(profile), reply_markup=settings_menu())
+    if text == "⏸ Pause":
+        profile["paused"] = True
+        await send_text(update, "⏸ Paused. No daily notifications will be sent.")
         return
 
-    if txt == "⬅️ Tillbaka":
-        await update.message.reply_text("🧭 Menu active.", reply_markup=main_menu())
+    if text == "▶️ Resume":
+        profile["paused"] = False
+        await ensure_job_loop(context.application, chat_id)
+        await send_text(update, "▶️ Resumed. Daily notifications are active.")
         return
 
-    if txt == "⏸️ Pausa":
-        profile.paused = True
-        await update.message.reply_text("⏸️ Paused.", reply_markup=main_menu())
+    if text == "🔔 Send now":
+        today = dt.datetime.now(TZ).date()
+        await send_text(update, "🔔 Sending now…")
+        await send_text(update, build_today_card(profile, today))
         return
 
-    if txt == "▶️ Starta":
-        profile.paused = False
-        await update.message.reply_text("▶️ Resumed.", reply_markup=main_menu())
+    if text == "🔮 Forecast":
+        # Simple 4-day outlook (MVP)
+        today = dt.datetime.now(TZ).date()
+        lines = ["🔮 Forecast (next 4 days)"]
+        for i in range(0, 4):
+            d = today + dt.timedelta(days=i)
+            daynum = cycle_day(profile, d)
+            ph = phase_for(daynum, profile["cycle_length"])
+            lines.append(f"- {d.isoformat()} → {phase_emoji(ph)} {ph} (Day {daynum})")
+        await send_text(update, "\n".join(lines))
         return
 
-    if txt == "🔔 Skicka nu":
-        await send_daily_ping(context.application, profile, force=True)
-        await update.message.reply_text("✅ Sent now.", reply_markup=main_menu())
+    if text == "⚙️ Settings":
+        await send_text(update,
+            "⚙️ Settings (MVP)\n"
+            "- To change data: use /start (re-onboard) or ♻️ Reset.\n"
+            "- To stop onboarding: /cancel"
+        )
         return
 
-    if txt == "✏️ Ändra cykeldata":
-        ONBOARDING_STATE[chat_id] = {"step": 3, "data": {
-            "partner_name": profile.partner_name,
-            "partner_dob": profile.partner_dob,
-        }}
-        await update.message.reply_text("Okej – uppdatera cykeldata.", reply_markup=main_menu())
-        await onboarding_prompt(update)
-        return
+    # Unknown button text
+    await send_text(update, "🤖 I didn’t recognize that button. Try /menu.")
 
-    if txt == "🕒 Ändra notistid":
-        ONBOARDING_STATE[chat_id] = {"step": 6, "data": {
-            "partner_name": profile.partner_name,
-            "partner_dob": profile.partner_dob,
-            "period_start": profile.period_start,
-            "period_end": profile.period_end,
-            "cycle_length": profile.cycle_length,
-        }}
-        await update.message.reply_text("Okej – skriv ny notistid.", reply_markup=main_menu())
-        await onboarding_prompt(update)
-        return
-
-    # fallback: always re-send menu so it never disappears
-    await update.message.reply_text("🧭 Välj i menyn (eller skriv /menu).", reply_markup=main_menu())
 
 # =========================
-# Main
+# Onboarding handler
 # =========================
-async def post_init(app: Application):
-    app.create_task(notifier_loop(app))
-    print("BOOT: starting bot.py")
+async def handle_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE, user_text: str):
+    chat_id = update.effective_chat.id
+    state = ONBOARDING.get(chat_id)
+    if not state:
+        return
+
+    step = state["step"]
+    temp = state["temp"]
+
+    # Step 1: nickname
+    if step == 1:
+        name = user_text.strip()
+        if len(name) < 2:
+            await send_text(update, "❌ Nickname too short. Try again (example: Anna).")
+            return
+        temp["partner_name"] = name
+        state["step"] = 2
+        await send_text(update, "2/6 - Partner DOB (YYYY-MM-DD) or type 'skip'")
+        return
+
+    # Step 2: dob or skip
+    if step == 2:
+        if user_text.strip().lower() == "skip":
+            temp["partner_dob"] = None
+        else:
+            dob = parse_date(user_text)
+            if not dob:
+                await send_text(update, "❌ Invalid date. Use YYYY-MM-DD or type 'skip'")
+                return
+            temp["partner_dob"] = dob.isoformat()
+        state["step"] = 3
+        await send_text(update, "3/6 - Last period START date (YYYY-MM-DD)")
+        return
+
+    # Step 3: period start
+    if step == 3:
+        d = parse_date(user_text)
+        if not d:
+            await send_text(update, "❌ Invalid date. Use YYYY-MM-DD.")
+            return
+        temp["period_start"] = d
+        state["step"] = 4
+        await send_text(update, "4/6 - Last period END date (YYYY-MM-DD)")
+        return
+
+    # Step 4: period end
+    if step == 4:
+        d = parse_date(user_text)
+        if not d:
+            await send_text(update, "❌ Invalid date. Use YYYY-MM-DD.")
+            return
+        if d < temp["period_start"]:
+            await send_text(update, "❌ End date can’t be before start date. Try again (YYYY-MM-DD).")
+            return
+        temp["period_end"] = d
+        state["step"] = 5
+        await send_text(update, "5/6 - Cycle length in days (21-35). Example: 28")
+        return
+
+    # Step 5: cycle length
+    if step == 5:
+        m = re.match(r"^\d+$", user_text.strip())
+        if not m:
+            await send_text(update, "❌ Enter a number (21-35). Example: 28")
+            return
+        length = int(user_text.strip())
+        if length < 21 or length > 35:
+            await send_text(update, "❌ Cycle length must be 21-35. Try again.")
+            return
+        temp["cycle_length"] = length
+        state["step"] = 6
+        await send_text(update, "6/6 - Daily notification time (HH:MM). Example: 09:00")
+        return
+
+    # Step 6: notify time
+    if step == 6:
+        t = parse_time(user_text)
+        if not t:
+            await send_text(update, "❌ Invalid time. Use HH:MM. Example: 09:00")
+            return
+
+        # Save profile
+        profile = {
+            "partner_name": temp["partner_name"],
+            "partner_dob": temp.get("partner_dob"),
+            "period_start": temp["period_start"],
+            "period_end": temp["period_end"],
+            "cycle_length": temp["cycle_length"],
+            "notify_time": t,
+            "paused": False,
+        }
+        PROFILES[chat_id] = profile
+        ONBOARDING.pop(chat_id, None)
+
+        await ensure_job_loop(context.application, chat_id)
+
+        await send_text(update,
+            "🎉 Setup complete!\n"
+            "✅ Menu is active below.\n"
+            "🔔 Daily notifications will arrive at your chosen time (Stockholm).\n\n"
+            "Tip: press 🔔 Send now to test instantly."
+        )
+        today = dt.datetime.now(TZ).date()
+        await send_text(update, build_today_card(profile, today))
+        return
+
+
+# =========================
+# Router (very important)
+# =========================
+async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_text = (update.message.text or "").strip()
+    chat_id = update.effective_chat.id
+
+    # 1) Global commands should always work (Telegram sends commands to CommandHandlers too,
+    # but in case user typed like normal text "/menu" etc.)
+    if user_text in ("/menu",):
+        await cmd_menu(update, context)
+        return
+    if user_text in ("/cancel",):
+        await cmd_cancel(update, context)
+        return
+    if user_text in ("/start",):
+        await cmd_start(update, context)
+        return
+    if user_text in ("/ping",):
+        await cmd_ping(update, context)
+        return
+    if user_text in ("/version",):
+        await cmd_version(update, context)
+        return
+
+    # 2) If onboarding active, handle onboarding BUT do not "kill" menu forever:
+    # the menu is still attached to replies, and /cancel works.
+    if chat_id in ONBOARDING:
+        await handle_onboarding(update, context, user_text)
+        return
+
+    # 3) Otherwise treat as menu press
+    await handle_menu_action(update, context, user_text)
+
 
 def main():
-    app = Application.builder().token(TOKEN).post_init(post_init).build()
+    print("BOOT: starting bot.py")
+    app = ApplicationBuilder().token(TOKEN).build()
 
-    app.add_handler(CommandHandler("start", start_cmd))
-    app.add_handler(CommandHandler("menu", menu_cmd))
-    app.add_handler(CommandHandler("ping", ping_cmd))
-    app.add_handler(CommandHandler("version", version_cmd))
+    # Commands
+    app.add_handler(CommandHandler("start", cmd_start))
+    app.add_handler(CommandHandler("menu", cmd_menu))
+    app.add_handler(CommandHandler("cancel", cmd_cancel))
+    app.add_handler(CommandHandler("ping", cmd_ping))
+    app.add_handler(CommandHandler("version", cmd_version))
 
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_router))
+    # Text router
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
+    # Also handle commands typed as plain text in some clients
+    app.add_handler(MessageHandler(filters.TEXT, on_text))
 
-    app.run_polling(drop_pending_updates=True)
+    app.run_polling(close_loop=False)
+
 
 if __name__ == "__main__":
     main()

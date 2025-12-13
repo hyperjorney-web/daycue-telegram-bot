@@ -1,4 +1,12 @@
 import os
+import sys
+
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+if not TOKEN:
+    print("ERROR: TELEGRAM_BOT_TOKEN is missing")
+    sys.exit(1)
+
+import os
 import sqlite3
 from datetime import datetime, date
 from dateutil.parser import isoparse

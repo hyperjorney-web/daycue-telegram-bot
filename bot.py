@@ -723,7 +723,9 @@ async def notification_loop(app: Application):
 
                 chat_id = int(r["chat_id"])
                 notify_time = r["notify_time"]
-                tz = r["tz"]
+             if bool(r["paused"]):
+    continue
+tz = r["tz"] or os.getenv("TZ_DEFAULT", "Europe/Stockholm")
 
                 local_now = now_utc.astimezone(ZoneInfo(tz))
                 local_date = local_now.date().isoformat()

@@ -180,6 +180,8 @@ class UserProfile:
     tz: str                         # IANA timezone
     locale: str = "en"
     paused: bool = False
+    sun_sign: Optional[str] = None
+    life_path_number: Optional[int] = None
 
 # ----------------------------
 # DB layer (asyncpg) - matches your Supabase tables
@@ -191,6 +193,8 @@ CREATE TABLE IF NOT EXISTS users (
   chat_id BIGINT PRIMARY KEY,
   partner_name TEXT NOT NULL,
   partner_dob DATE NULL,
+  sun_sign TEXT NULL,
+  life_path_number INT NULL,
   period_start DATE NOT NULL,
   period_end DATE NULL,
   cycle_length INT NOT NULL,
@@ -218,6 +222,8 @@ CREATE TABLE IF NOT EXISTS daily_feedback (
   phase TEXT NOT NULL,
   helpful BOOLEAN NOT NULL,
   cue_headline TEXT NOT NULL,
+  sun_sign TEXT NULL,
+  life_path_number INT NULL,
   energy INT NOT NULL,
   mood INT NOT NULL,
   irritability INT NOT NULL,
@@ -251,6 +257,10 @@ async def db_init():
     async with DB_POOL.acquire() as conn:
         await conn.execute(SCHEMA_SQL)
         await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS locale TEXT NOT NULL DEFAULT 'en'")
+        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS sun_sign TEXT")
+        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS life_path_number INT")
+        await conn.execute("ALTER TABLE daily_feedback ADD COLUMN IF NOT EXISTS sun_sign TEXT")
+        await conn.execute("ALTER TABLE daily_feedback ADD COLUMN IF NOT EXISTS life_path_number INT")
     LOG.info("✅ DB connected + schema ensured")
 
 async def db_fetch_user(chat_id: int) -> Optional[UserProfile]:
@@ -259,10 +269,20 @@ async def db_fetch_user(chat_id: int) -> Optional[UserProfile]:
         row = await conn.fetchrow("SELECT * FROM users WHERE chat_id=$1", chat_id)
         if not row:
             return None
+        partner_dob = row["partner_dob"].isoformat() if row["partner_dob"] else None
+        sun_sign = row["sun_sign"] if "sun_sign" in row else None
+        life_path_raw = row["life_path_number"] if "life_path_number" in row else None
+        life_path_number = int(life_path_raw) if life_path_raw is not None else None
+        if partner_dob and not sun_sign:
+            sun_sign = _sun_sign_from_dob(partner_dob)
+        if partner_dob and life_path_number is None:
+            life_path_number = _life_path_number_from_dob(partner_dob)
         return UserProfile(
             chat_id=int(row["chat_id"]),
             partner_name=row["partner_name"],
-            partner_dob=row["partner_dob"].isoformat() if row["partner_dob"] else None,
+            partner_dob=partner_dob,
+            sun_sign=sun_sign,
+            life_path_number=life_path_number,
             period_start=row["period_start"].isoformat(),
             period_end=row["period_end"].isoformat() if row["period_end"] else None,
             cycle_length=int(row["cycle_length"]),
@@ -274,14 +294,22 @@ async def db_fetch_user(chat_id: int) -> Optional[UserProfile]:
 
 async def db_upsert_user(p: UserProfile) -> None:
     assert DB_POOL
+    if p.partner_dob:
+        p.sun_sign = _sun_sign_from_dob(p.partner_dob)
+        p.life_path_number = _life_path_number_from_dob(p.partner_dob)
+    else:
+        p.sun_sign = None
+        p.life_path_number = None
     async with DB_POOL.acquire() as conn:
         await conn.execute(
             """
-            INSERT INTO users(chat_id, partner_name, partner_dob, period_start, period_end, cycle_length, notify_time, tz, locale, paused)
-            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+            INSERT INTO users(chat_id, partner_name, partner_dob, sun_sign, life_path_number, period_start, period_end, cycle_length, notify_time, tz, locale, paused)
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
             ON CONFLICT(chat_id) DO UPDATE SET
               partner_name=EXCLUDED.partner_name,
               partner_dob=EXCLUDED.partner_dob,
+              sun_sign=EXCLUDED.sun_sign,
+              life_path_number=EXCLUDED.life_path_number,
               period_start=EXCLUDED.period_start,
               period_end=EXCLUDED.period_end,
               cycle_length=EXCLUDED.cycle_length,
@@ -294,6 +322,8 @@ async def db_upsert_user(p: UserProfile) -> None:
             p.chat_id,
             p.partner_name,
             dt.date.fromisoformat(p.partner_dob) if p.partner_dob else None,
+            p.sun_sign,
+            p.life_path_number,
             dt.date.fromisoformat(p.period_start),
             dt.date.fromisoformat(p.period_end) if p.period_end else None,
             int(p.cycle_length),
@@ -321,6 +351,8 @@ async def db_upsert_feedback(
     phase: str,
     helpful: bool,
     cue_headline: str,
+    sun_sign: Optional[str],
+    life_path_number: Optional[int],
     stats: Dict[str, int],
 ) -> None:
     assert DB_POOL
@@ -329,14 +361,16 @@ async def db_upsert_feedback(
             """
             INSERT INTO daily_feedback(
               chat_id, cue_date, cycle_day, phase, helpful, cue_headline,
-              energy, mood, irritability, connection_openness
+              sun_sign, life_path_number, energy, mood, irritability, connection_openness
             )
-            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
             ON CONFLICT(chat_id, cue_date) DO UPDATE SET
               cycle_day=EXCLUDED.cycle_day,
               phase=EXCLUDED.phase,
               helpful=EXCLUDED.helpful,
               cue_headline=EXCLUDED.cue_headline,
+              sun_sign=EXCLUDED.sun_sign,
+              life_path_number=EXCLUDED.life_path_number,
               energy=EXCLUDED.energy,
               mood=EXCLUDED.mood,
               irritability=EXCLUDED.irritability,
@@ -349,6 +383,8 @@ async def db_upsert_feedback(
             phase,
             helpful,
             cue_headline,
+            sun_sign,
+            life_path_number,
             stats["energy"],
             stats["mood"],
             stats["irritability"],
@@ -503,6 +539,7 @@ UI_TEXT = {
         "name": "Name",
         "language": "Language",
         "sun_sign": "Sun sign",
+        "life_path": "Life path",
         "paused": "Paused",
         "yes": "yes",
         "no": "no",
@@ -516,6 +553,7 @@ UI_TEXT = {
         "no_next_shift": "No phase switch left in this cycle.",
         "phase_description": "Phase description",
         "zodiac_tone": "Personal tone",
+        "numerology_tone": "Communication style",
         "quick_signal_check": "Quick signal check",
         "recent_period_history": "Recent period history",
         "no_history": "• No period history yet.",
@@ -621,6 +659,7 @@ UI_TEXT = {
         "name": "Namn",
         "language": "Sprak",
         "sun_sign": "Soltecken",
+        "life_path": "Livsvag",
         "paused": "Pausad",
         "yes": "ja",
         "no": "nej",
@@ -634,6 +673,7 @@ UI_TEXT = {
         "no_next_shift": "Ingen fasvaxling kvar i den har cykeln.",
         "phase_description": "Fasbeskrivning",
         "zodiac_tone": "Personlig ton",
+        "numerology_tone": "Kommunikationsstil",
         "quick_signal_check": "Snabb signalcheck",
         "recent_period_history": "Senaste periodhistorik",
         "no_history": "• Ingen historik an.",
@@ -739,6 +779,7 @@ UI_TEXT = {
         "name": "Имя",
         "language": "Язык",
         "sun_sign": "Знак зодиака",
+        "life_path": "Число пути",
         "paused": "Пауза",
         "yes": "да",
         "no": "нет",
@@ -752,6 +793,7 @@ UI_TEXT = {
         "no_next_shift": "В этом цикле больше не будет смены фазы.",
         "phase_description": "Описание фазы",
         "zodiac_tone": "Персональный тон",
+        "numerology_tone": "Стиль коммуникации",
         "quick_signal_check": "Быстрый срез",
         "recent_period_history": "Последняя история цикла",
         "no_history": "• Истории пока нет.",
@@ -1162,6 +1204,114 @@ ZODIAC_OVERLAYS = {
     },
 }
 
+NUMEROLOGY_I18N = {
+    "en": {
+        1: "Life Path 1",
+        2: "Life Path 2",
+        3: "Life Path 3",
+        4: "Life Path 4",
+        5: "Life Path 5",
+        6: "Life Path 6",
+        7: "Life Path 7",
+        8: "Life Path 8",
+        9: "Life Path 9",
+        11: "Master 11",
+        22: "Master 22",
+        33: "Master 33",
+    },
+    "sv": {
+        1: "Livsvag 1",
+        2: "Livsvag 2",
+        3: "Livsvag 3",
+        4: "Livsvag 4",
+        5: "Livsvag 5",
+        6: "Livsvag 6",
+        7: "Livsvag 7",
+        8: "Livsvag 8",
+        9: "Livsvag 9",
+        11: "Mastare 11",
+        22: "Mastare 22",
+        33: "Mastare 33",
+    },
+    "ru": {
+        1: "Путь 1",
+        2: "Путь 2",
+        3: "Путь 3",
+        4: "Путь 4",
+        5: "Путь 5",
+        6: "Путь 6",
+        7: "Путь 7",
+        8: "Путь 8",
+        9: "Путь 9",
+        11: "Мастер 11",
+        22: "Мастер 22",
+        33: "Мастер 33",
+    },
+}
+
+NUMEROLOGY_OVERLAYS = {
+    1: {
+        "tone": {"en": "More direct, action-first support usually lands better here.", "sv": "Mer direkt och handlingsinriktat stod landar ofta battre har.", "ru": "Здесь обычно лучше заходит более прямой и action-first стиль поддержки."},
+        "do": {"en": "Keep the support decisive and not overexplained.", "sv": "Hall stodet beslutsamt och inte overforklarat.", "ru": "Делай поддержку более решительной и без лишних объяснений."},
+        "avoid": {"en": "Avoid sounding hesitant if you already know how to help.", "sv": "Undvik att lata tveksam om du redan vet hur du kan hjalpa.", "ru": "Избегай неуверенного тона, если уже понимаешь, как помочь."},
+    },
+    2: {
+        "tone": {"en": "Tact, reassurance, and softer pacing matter more.", "sv": "Takt, trygghet och ett mjukare tempo betyder mer.", "ru": "Здесь важнее такт, reassurance и более мягкий темп."},
+        "do": {"en": "Use a gentler tone and make the support feel relational, not mechanical.", "sv": "Anvand en mjukare ton och lat stodet kannas relationellt, inte mekaniskt.", "ru": "Используй более мягкий тон и делай поддержку более человечной, а не механической."},
+        "avoid": {"en": "Avoid emotional sharpness or making the moment feel transactional.", "sv": "Undvik emotionell skarpa eller att gora stunden transaktionell.", "ru": "Избегай эмоциональной резкости и ощущения транзакционности."},
+    },
+    3: {
+        "tone": {"en": "A lighter, more expressive style tends to help.", "sv": "En lattare och mer uttrycksfull stil tenderar att hjalpa.", "ru": "Обычно помогает более легкий и выразительный стиль."},
+        "do": {"en": "Keep the support warm, human, and slightly uplifting.", "sv": "Hall stodet varmt, manskligt och lite upplyftande.", "ru": "Делай поддержку теплой, живой и слегка поднимающей настроение."},
+        "avoid": {"en": "Avoid making the whole exchange too heavy if it can stay lighter.", "sv": "Undvik att gora hela utbytet for tungt om det kan hallas lattare.", "ru": "Не делай все общение слишком тяжелым, если можно сохранить легкость."},
+    },
+    4: {
+        "tone": {"en": "Structure, predictability, and practical support matter more.", "sv": "Struktur, forutsagbarhet och praktiskt stod spelar storre roll.", "ru": "Здесь особенно важны структура, предсказуемость и практическая поддержка."},
+        "do": {"en": "Make the help more concrete, orderly, and easy to rely on.", "sv": "Gor hjalpen mer konkret, ordnad och latt att lita pa.", "ru": "Делай помощь более конкретной, упорядоченной и надежной."},
+        "avoid": {"en": "Avoid vague care that still leaves her organizing everything.", "sv": "Undvik vag omsorg som fortfarande lamnar allt organiserande hos henne.", "ru": "Избегай расплывчатой заботы, после которой вся организация все равно остается на ней."},
+    },
+    5: {
+        "tone": {"en": "Flexibility and breathing room tend to matter more.", "sv": "Flexibilitet och mer andrum tenderar att betyda mer.", "ru": "Здесь большее значение обычно имеют гибкость и пространство."},
+        "do": {"en": "Keep support spacious and low-control.", "sv": "Hall stodet rymligt och med lag kontroll.", "ru": "Делай поддержку более свободной и без лишнего контроля."},
+        "avoid": {"en": "Avoid making care feel confining or overmanaged.", "sv": "Undvik att fa omsorgen att kannas instangd eller overstyrd.", "ru": "Избегай ощущения сдавленности и чрезмерного менеджмента."},
+    },
+    6: {
+        "tone": {"en": "Warmth, care, and belonging land especially well.", "sv": "Varme, omsorg och tillhorighet landar extra bra.", "ru": "Особенно хорошо заходят тепло, забота и чувство близости."},
+        "do": {"en": "Make the support feel nurturing and clearly on her side.", "sv": "Lat stodet kannas omhandertagande och tydligt pa hennes sida.", "ru": "Делай поддержку более заботливой и явно стоящей на ее стороне."},
+        "avoid": {"en": "Avoid detached efficiency without warmth.", "sv": "Undvik distanserad effektivitet utan varme.", "ru": "Избегай отстраненной эффективности без тепла."},
+    },
+    7: {
+        "tone": {"en": "Privacy, gentleness, and low intrusion matter more.", "sv": "Integritet, mjukhet och lag inblandning betyder mer.", "ru": "Здесь особенно важны приватность, мягкость и ненавязчивость."},
+        "do": {"en": "Support quietly and let her come toward you at her own pace.", "sv": "Stod tyst och lat henne komma mot dig i sin egen takt.", "ru": "Поддерживай спокойно и дай ей самой приблизиться в своем темпе."},
+        "avoid": {"en": "Avoid over-checking, over-questioning, or crowding her emotionally.", "sv": "Undvik att kolla for mycket, fraga for mycket eller tranga dig pa emotionellt.", "ru": "Избегай слишком частых проверок, вопросов и эмоционального нависания."},
+    },
+    8: {
+        "tone": {"en": "Competence, reliability, and strong follow-through matter more.", "sv": "Kompetens, palitlighet och starkt genomforande betyder mer.", "ru": "Здесь особенно важны компетентность, надежность и уверенное доведение до результата."},
+        "do": {"en": "Take responsibility in a confident, stabilizing way.", "sv": "Ta ansvar pa ett tryggt och stabiliserande satt.", "ru": "Бери ответственность уверенно и стабилизирующе."},
+        "avoid": {"en": "Avoid empty reassurance without concrete support.", "sv": "Undvik tom trygghet utan konkret stod.", "ru": "Избегай пустого успокоения без конкретной поддержки."},
+    },
+    9: {
+        "tone": {"en": "Empathy, emotional depth, and softness tend to matter more.", "sv": "Empati, emotionellt djup och mjukhet tenderar att betyda mer.", "ru": "Обычно здесь больше значат эмпатия, эмоциональная глубина и мягкость."},
+        "do": {"en": "Lean toward compassionate, emotionally aware language.", "sv": "Luta mer mot medkanslig och emotionellt medveten kommunikation.", "ru": "Смещайся в сторону более сострадательного и эмоционально чуткого языка."},
+        "avoid": {"en": "Avoid cold, blunt, or overly functional phrasing.", "sv": "Undvik kall, abrupt eller overly funktionell formulering.", "ru": "Избегай холодной, резкой и слишком функциональной подачи."},
+    },
+    11: {
+        "tone": {"en": "Intuitive, sensitive support tends to land better.", "sv": "Intuitivt och kansligt stod tenderar att landa battre.", "ru": "Лучше всего обычно заходит интуитивная и чувствительная поддержка."},
+        "do": {"en": "Keep the tone soft, perceptive, and low-pressure.", "sv": "Hall tonen mjuk, perceptiv och lagpressad.", "ru": "Держи тон мягким, тонко чувствующим и без давления."},
+        "avoid": {"en": "Avoid harshness or trying to force clarity too fast.", "sv": "Undvik hardhet eller att forsoka tvinga fram tydlighet for snabbt.", "ru": "Избегай жесткости и попыток слишком быстро вытянуть ясность."},
+    },
+    22: {
+        "tone": {"en": "Grounded, stabilizing support works especially well.", "sv": "Jordat och stabiliserande stod fungerar extra bra.", "ru": "Особенно хорошо работает более заземляющая и стабилизирующая поддержка."},
+        "do": {"en": "Be solid, capable, and quietly dependable.", "sv": "Var stabil, kapabel och tyst palitlig.", "ru": "Будь устойчивым, способным и тихо надежным."},
+        "avoid": {"en": "Avoid vague sympathy without building any real support around her.", "sv": "Undvik vag sympati utan att bygga verkligt stod runt henne.", "ru": "Избегай расплывчатого сочувствия без реальной опоры вокруг нее."},
+    },
+    33: {
+        "tone": {"en": "Deeply nurturing, soothing support will often land best.", "sv": "Djupt omhandertagande och lugnande stod landar ofta bast.", "ru": "Часто лучше всего заходит глубоко заботливая и успокаивающая поддержка."},
+        "do": {"en": "Make the support feel generous, calm, and emotionally safe.", "sv": "Lat stodet kannas generost, lugnt och emotionellt tryggt.", "ru": "Делай поддержку щедрой, спокойной и эмоционально безопасной."},
+        "avoid": {"en": "Avoid emotional coldness or support that feels merely procedural.", "sv": "Undvik emotionell kyla eller stod som bara kanns procedurellt.", "ru": "Избегай эмоциональной холодности и поддержки, которая ощущается чисто процедурной."},
+    },
+}
+
 PHASE_NAME_I18N = {
     "en": PHASE_NAME,
     "sv": {"menstrual": "Menstruell", "follicular": "Follikular", "ovulatory": "Ovulatorisk", "luteal": "Luteal"},
@@ -1201,8 +1351,24 @@ def _sun_sign_label(sign: Optional[str], locale: str) -> Optional[str]:
     return SUN_SIGN_I18N.get(locale, SUN_SIGN_I18N["en"]).get(sign, sign)
 
 
+def _life_path_number_from_dob(dob: Optional[str]) -> Optional[int]:
+    if not dob:
+        return None
+    digits = [int(ch) for ch in dob if ch.isdigit()]
+    total = sum(digits)
+    while total not in {11, 22, 33} and total > 9:
+        total = sum(int(ch) for ch in str(total))
+    return total
+
+
+def _life_path_label(number: Optional[int], locale: str) -> Optional[str]:
+    if number is None:
+        return None
+    return NUMEROLOGY_I18N.get(locale, NUMEROLOGY_I18N["en"]).get(number, str(number))
+
+
 def _zodiac_overlay(profile: UserProfile, locale: str) -> Optional[Dict[str, str]]:
-    sign = _sun_sign_from_dob(profile.partner_dob)
+    sign = profile.sun_sign or _sun_sign_from_dob(profile.partner_dob)
     if not sign:
         return None
     pack = ZODIAC_OVERLAYS.get(sign)
@@ -1217,12 +1383,37 @@ def _zodiac_overlay(profile: UserProfile, locale: str) -> Optional[Dict[str, str
     }
 
 
+def _numerology_overlay(profile: UserProfile, locale: str) -> Optional[Dict[str, str]]:
+    number = profile.life_path_number if profile.life_path_number is not None else _life_path_number_from_dob(profile.partner_dob)
+    if number is None:
+        return None
+    pack = NUMEROLOGY_OVERLAYS.get(number)
+    if not pack:
+        return None
+    return {
+        "number": number,
+        "label": _life_path_label(number, locale) or str(number),
+        "tone": pack["tone"].get(locale, pack["tone"]["en"]),
+        "do": pack["do"].get(locale, pack["do"]["en"]),
+        "avoid": pack["avoid"].get(locale, pack["avoid"]["en"]),
+    }
+
+
 def _apply_zodiac_to_cue(cue: Dict[str, str], zodiac: Optional[Dict[str, str]]) -> Dict[str, str]:
     if not zodiac:
         return cue
     merged = dict(cue)
     merged["do"] = f"{merged['do']} {zodiac['do']}"
     merged["avoid"] = f"{merged['avoid']} {zodiac['avoid']}"
+    return merged
+
+
+def _apply_numerology_to_cue(cue: Dict[str, str], numerology: Optional[Dict[str, str]]) -> Dict[str, str]:
+    if not numerology:
+        return cue
+    merged = dict(cue)
+    merged["do"] = f"{merged['do']} {numerology['do']}"
+    merged["avoid"] = f"{merged['avoid']} {numerology['avoid']}"
     return merged
 
 def _arrow(cur: int, prev: int) -> str:
@@ -1668,11 +1859,24 @@ async def render_today(profile: UserProfile) -> str:
     hormones = snap["hormones"]
     prev_stats = _phase_stats(yday_num, bounds)
     zodiac = _zodiac_overlay(profile, locale)
-    cue = _apply_zodiac_to_cue(_cue_pack(phase, day, now_stats, locale), zodiac)
+    numerology = _numerology_overlay(profile, locale)
+    cue = _apply_numerology_to_cue(
+        _apply_zodiac_to_cue(_cue_pack(phase, day, now_stats, locale), zodiac),
+        numerology,
+    )
     support = _extra_support_lines(phase, now_stats, hormones, day, locale)
     if zodiac:
         support["relationship"] = f"{support['relationship']} {_ui(locale, 'zodiac_tone')}: {zodiac['tone']}"
-    zodiac_block = f"<b>{_ui(locale, 'sun_sign')}</b>: <b>{zodiac['label']}</b>\n{zodiac['tone']}\n\n" if zodiac else ""
+    if numerology:
+        support["regulate"] = f"{support['regulate']} {_ui(locale, 'numerology_tone')}: {numerology['tone']}"
+    overlays = []
+    if zodiac:
+        overlays.append(f"<b>{_ui(locale, 'sun_sign')}</b>: <b>{zodiac['label']}</b>\n{zodiac['tone']}")
+    if numerology:
+        overlays.append(f"<b>{_ui(locale, 'life_path')}</b>: <b>{numerology['label']}</b>\n{numerology['tone']}")
+    overlay_block = "\n\n".join(overlays)
+    if overlay_block:
+        overlay_block += "\n\n"
 
     def stat_line(label: str, emoji: str, key: str):
         return f"{emoji} {label}: {_bar(now_stats[key])} {_arrow(now_stats[key], prev_stats[key])}"
@@ -1689,7 +1893,7 @@ async def render_today(profile: UserProfile) -> str:
         f"<b>{_ui(locale, 'today_for', name=profile.partner_name)}</b>\n"
         f"{_ui(locale, 'day_short')} <b>{day}/{profile.cycle_length}</b> · <b>{_phase_name(phase, locale)}</b> {PHASE_EMOJI[phase]}\n"
         f"{_phase_summary_text(phase, now_stats, locale)}\n\n"
-        f"{zodiac_block}"
+        f"{overlay_block}"
         f"<b>{_ui(locale, 'todays_cue')}</b>\n"
         f"<b>{cue['headline']}</b>\n"
         f"{cue['do']}\n\n"
@@ -1732,6 +1936,7 @@ async def render_settings(profile: UserProfile) -> str:
     day = snap["day"]
     stats = snap["stats"]
     zodiac = _zodiac_overlay(profile, locale)
+    numerology = _numerology_overlay(profile, locale)
     desc = await copy_get(f"phase_desc_{phase}", locale=locale, phase=phase)
     history = await db_fetch_period_history(profile.chat_id, 3)
 
@@ -1752,6 +1957,7 @@ async def render_settings(profile: UserProfile) -> str:
         f"<b>{_ui(locale, 'partner')}</b>\n"
         f"{_ui(locale, 'name')}: <b>{profile.partner_name}</b>\n"
         f"{_ui(locale, 'sun_sign')}: <b>{zodiac['label'] if zodiac else _ui(locale, 'unknown')}</b>\n"
+        f"{_ui(locale, 'life_path')}: <b>{numerology['label'] if numerology else _ui(locale, 'unknown')}</b>\n"
         f"{_ui(locale, 'language')}: <b>{profile.locale}</b>\n"
         f"{_ui(locale, 'paused')}: <b>{_ui(locale, 'yes') if profile.paused else _ui(locale, 'no')}</b>\n"
         f"{_ui(locale, 'notify')}: <b>{profile.notify_time}</b> ({profile.tz})\n\n"
@@ -1898,6 +2104,7 @@ async def render_forecast(profile: UserProfile, days: int = 7) -> str:
     bounds = snap["bounds"]
     start = snap["start"]
     zodiac = _zodiac_overlay(profile, locale)
+    numerology = _numerology_overlay(profile, locale)
 
     lines = [f"<b>{_ui(locale, 'forecast_title', days=days, name=profile.partner_name)}</b>\n"]
     last_phase = None
@@ -1916,7 +2123,7 @@ async def render_forecast(profile: UserProfile, days: int = 7) -> str:
             last_phase = ph
 
         st = _phase_stats(cd, bounds)
-        cue = _apply_zodiac_to_cue(_cue_pack(ph, cd, st, locale), zodiac)
+        cue = _apply_numerology_to_cue(_apply_zodiac_to_cue(_cue_pack(ph, cd, st, locale), zodiac), numerology)
         hormones = _estimated_hormones(cd, profile.cycle_length, bounds)
         fertility = _fertility_label(cd, bounds)
         if fertility in {"peak", "high"}:
@@ -2361,6 +2568,7 @@ async def _record_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE, h
         _cue_pack(snap["phase"], snap["day"], snap["stats"], profile.locale),
         _zodiac_overlay(profile, profile.locale),
     )
+    cue = _apply_numerology_to_cue(cue, _numerology_overlay(profile, profile.locale))
     await db_upsert_feedback(
         chat_id=profile.chat_id,
         cue_date=snap["today"].isoformat(),
@@ -2368,6 +2576,8 @@ async def _record_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE, h
         phase=snap["phase"],
         helpful=helpful,
         cue_headline=cue["headline"],
+        sun_sign=profile.sun_sign or _sun_sign_from_dob(profile.partner_dob),
+        life_path_number=profile.life_path_number if profile.life_path_number is not None else _life_path_number_from_dob(profile.partner_dob),
         stats=snap["stats"],
     )
     await _send(

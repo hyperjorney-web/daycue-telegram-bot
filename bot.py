@@ -951,22 +951,22 @@ def _level_word(level: int, *, positive: bool = True) -> str:
     return "high"
 
 
-def _phase_summary_text(phase: str, stats: Dict[str, int]) -> str:
+def _phase_summary_text(phase: str, stats: Dict[str, int], locale: str = "en") -> str:
     if stats["physical_comfort"] <= 2 and stats["energy"] <= 2:
-        return "Body comfort is lower today and energy is limited. Softer pacing, warmth, and fewer demands will help most."
+        return _locale_pack(locale, "Body comfort is lower today and energy is limited. Softer pacing, warmth, and fewer demands will help most.", "Kroppslig komfort ar lagre idag och energin ar begransad. Mjukare tempo, varme och farre krav hjalper mest.", "Телесный комфорт сегодня ниже, а энергия ограничена. Мягкий темп, тепло и меньше требований помогут лучше всего.")
     if stats["connection_openness"] >= 4 and stats["social"] >= 4:
-        return "Connection looks easier today. Shared time, warmth, and a more open tone are likely to land well."
+        return _locale_pack(locale, "Connection looks easier today. Shared time, warmth, and a more open tone are likely to land well.", "Kontakt verkar lattare idag. Gemensam tid, varme och en mer oppen ton landar troligen bra.", "Сегодня контакт дается легче. Совместное время, тепло и более открытый тон, скорее всего, зайдут хорошо.")
     if stats["need_for_space"] >= 4 and stats["sensitivity"] >= 4:
-        return "Sensitivity is elevated today. Support matters, but it should come with more room and less pressure."
+        return _locale_pack(locale, "Sensitivity is elevated today. Support matters, but it should come with more room and less pressure.", "Kansligheten ar forhojd idag. Stod spelar roll, men det bor komma med mer utrymme och mindre press.", "Сегодня повышенная чувствительность. Поддержка важна, но с большим пространством и меньшим давлением.")
     if phase == "menstrual":
-        return "Lower energy and higher sensitivity today. Calm, warmth, and fewer demands will land best."
+        return _locale_pack(locale, "Lower energy and higher sensitivity today. Calm, warmth, and fewer demands will land best.", "Lagre energi och hogre kanslighet idag. Lugn, varme och farre krav landar bast.", "Сегодня ниже энергия и выше чувствительность. Лучше всего зайдут спокойствие, тепло и меньше требований.")
     if phase == "follicular":
-        return "Energy is building. Lighter plans, movement, and positive momentum usually work well."
+        return _locale_pack(locale, "Energy is building. Lighter plans, movement, and positive momentum usually work well.", "Energien byggs upp. Lattare planer, rorelse och positivt momentum fungerar ofta bra.", "Энергия растет. Обычно хорошо работают более легкие планы, движение и позитивный импульс.")
     if phase == "ovulatory":
-        return "Connection is easier today. Confidence, warmth, and shared time tend to land well."
+        return _locale_pack(locale, "Connection is easier today. Confidence, warmth, and shared time tend to land well.", "Kontakt ar enklare idag. Trygghet, varme och gemensam tid brukar landa bra.", "Сегодня легче идти в близость. Уверенность, тепло и совместное время обычно заходят хорошо.")
     if stats["irritability"] >= 4:
-        return "Emotional load may be higher today. Keep things low-pressure, steady, and practical."
-    return "A steadier, lower-friction day. Predictability and gentle support will help more than pressure."
+        return _locale_pack(locale, "Emotional load may be higher today. Keep things low-pressure, steady, and practical.", "Den emotionella belastningen kan vara hogre idag. Hall allt mindre pressat, stabilt och praktiskt.", "Эмоциональная нагрузка сегодня может быть выше. Держи всё менее напряженным, стабильным и практичным.")
+    return _locale_pack(locale, "A steadier, lower-friction day. Predictability and gentle support will help more than pressure.", "En stadigare dag med mindre friktion. Forutsagbarhet och mjukt stod hjalper mer an press.", "Более ровный день с меньшим трением. Предсказуемость и мягкая поддержка помогут больше, чем давление.")
 
 
 def _estimated_hormones(day: int, cycle_len: int, bounds: Dict[str, Tuple[int, int]]) -> Dict[str, int]:
@@ -1110,162 +1110,166 @@ def _pick_by_day(day: int, options: List[str]) -> str:
     return options[(day - 1) % len(options)]
 
 
-def _cue_pack(phase: str, day: int, stats: Dict[str, int]) -> Dict[str, str]:
+def _locale_pack(locale: str, en: str, sv: str, ru: str) -> str:
+    return {"en": en, "sv": sv, "ru": ru}.get(locale, en)
+
+
+def _cue_pack(phase: str, day: int, stats: Dict[str, int], locale: str = "en") -> Dict[str, str]:
     pack: Dict[str, str]
     if phase == "menstrual":
         pack = {
             "headline": _pick_by_day(day, [
-                "Lower the load",
-                "Lead with comfort",
-                "Make the day easier",
+                _locale_pack(locale, "Lower the load", "Sank belastningen", "Снизь нагрузку"),
+                _locale_pack(locale, "Lead with comfort", "Led med komfort", "Сделай упор на комфорт"),
+                _locale_pack(locale, "Make the day easier", "Gor dagen enklare", "Сделай день легче"),
             ]),
             "do": _pick_by_day(day, [
-                "Take one practical thing off her plate without making her decide.",
-                "Keep plans light and create a quieter evening than usual.",
-                "Offer comfort first: food, warmth, rest, and less pressure.",
+                _locale_pack(locale, "Take one practical thing off her plate without making her decide.", "Ta bort en praktisk sak fran hennes lista utan att hon behover bestamma.", "Сними с нее одну практическую задачу, не заставляя выбирать."),
+                _locale_pack(locale, "Keep plans light and create a quieter evening than usual.", "Hall planerna latta och gor kvallen lugnare an vanligt.", "Сделай планы легче и вечер спокойнее обычного."),
+                _locale_pack(locale, "Offer comfort first: food, warmth, rest, and less pressure.", "Borja med komfort: mat, varme, vila och mindre press.", "Сначала дай комфорт: еда, тепло, отдых и меньше давления."),
             ]),
             "say": _pick_by_day(day, [
-                "I can make tonight easier for you.",
-                "No pressure today, we can keep things simple.",
-                "Tell me what would feel most comfortable right now.",
+                _locale_pack(locale, "I can make tonight easier for you.", "Jag kan gora ikvall enklare for dig.", "Я могу сделать этот вечер для тебя легче."),
+                _locale_pack(locale, "No pressure today, we can keep things simple.", "Ingen press idag, vi kan halla det enkelt.", "Сегодня без давления, давай оставим всё простым."),
+                _locale_pack(locale, "Tell me what would feel most comfortable right now.", "Sag vad som skulle kannas mest bekvamt just nu.", "Скажи, что сейчас было бы для тебя самым комфортным."),
             ]),
             "avoid": _pick_by_day(day, [
-                "Avoid piling on decisions or last-minute plans.",
-                "Don't turn low energy into a debate about attitude.",
-                "Avoid expecting the same pace as a high-energy day.",
+                _locale_pack(locale, "Avoid piling on decisions or last-minute plans.", "Undvik att lagga pa beslut eller sista minuten-planer.", "Не нагружай решениями и планами в последний момент."),
+                _locale_pack(locale, "Don't turn low energy into a debate about attitude.", "Gor inte lag energi till en diskussion om attityd.", "Не превращай низкую энергию в спор о настроении."),
+                _locale_pack(locale, "Avoid expecting the same pace as a high-energy day.", "Forvanta dig inte samma tempo som pa en hogenergisk dag.", "Не жди того же темпа, что в день с высокой энергией."),
             ]),
         }
     elif phase == "follicular":
         pack = {
             "headline": _pick_by_day(day, [
-                "Use the lighter energy",
-                "Say yes to momentum",
-                "Keep it fresh and easy",
+                _locale_pack(locale, "Use the lighter energy", "Anvand den lattare energin", "Используй более легкую энергию"),
+                _locale_pack(locale, "Say yes to momentum", "Sag ja till momentum", "Подхвати этот импульс"),
+                _locale_pack(locale, "Keep it fresh and easy", "Hall det latt och frascht", "Сделай всё легко и свежо"),
             ]),
             "do": _pick_by_day(day, [
-                "Suggest something light and energizing: a walk, coffee, or a simple plan.",
-                "Match the growing momentum with a positive, low-friction invitation.",
-                "Use this window for plans, progress, or something playful together.",
+                _locale_pack(locale, "Suggest something light and energizing: a walk, coffee, or a simple plan.", "Foresla nagot latt och energigivande: en promenad, kaffe eller en enkel plan.", "Предложи что-то легкое и бодрящее: прогулку, кофе или простой план."),
+                _locale_pack(locale, "Match the growing momentum with a positive, low-friction invitation.", "Mota det okande momentumet med en positiv och enkel invitation.", "Поддержи растущий импульс позитивным и ненапряжным приглашением."),
+                _locale_pack(locale, "Use this window for plans, progress, or something playful together.", "Anvand det har fonstret for planer, framsteg eller nagot lekfullt tillsammans.", "Используй это окно для планов, движения вперед или чего-то игривого вместе."),
             ]),
             "say": _pick_by_day(day, [
-                "Want to do something light and fun later?",
-                "You seem to have more energy today, let's use it well.",
-                "This feels like a good day for something simple and nice together.",
+                _locale_pack(locale, "Want to do something light and fun later?", "Vill du gora nagot latt och kul senare?", "Хочешь потом сделать что-то легкое и приятное?"),
+                _locale_pack(locale, "You seem to have more energy today, let's use it well.", "Det verkar som att du har mer energi idag, lat oss anvanda den bra.", "Похоже, сегодня у тебя больше энергии, давай хорошо ее используем."),
+                _locale_pack(locale, "This feels like a good day for something simple and nice together.", "Det har kanns som en bra dag for nagot enkelt och fint tillsammans.", "Похоже, это хороший день для чего-то простого и приятного вместе."),
             ]),
             "avoid": _pick_by_day(day, [
-                "Avoid overcomplicating an easy day with too much structure.",
-                "Don't stay passive if she seems open to movement or plans.",
-                "Avoid treating today like a low-energy day if the vibe is clearly better.",
+                _locale_pack(locale, "Avoid overcomplicating an easy day with too much structure.", "Overkomplicera inte en enkel dag med for mycket struktur.", "Не усложняй легкий день излишней структурой."),
+                _locale_pack(locale, "Don't stay passive if she seems open to movement or plans.", "Var inte passiv om hon verkar oppen for aktivitet eller planer.", "Не оставайся пассивным, если она открыта к активности или планам."),
+                _locale_pack(locale, "Avoid treating today like a low-energy day if the vibe is clearly better.", "Behandla inte dagen som lagenergi om stammningen ar tydligt battre.", "Не относись к этому дню как к дню низкой энергии, если настроение явно лучше."),
             ]),
         }
     elif phase == "ovulatory":
         pack = {
             "headline": _pick_by_day(day, [
-                "Lean into connection",
-                "Show up with warmth",
-                "Make space for closeness",
+                _locale_pack(locale, "Lean into connection", "Luta dig in i kontakt", "Опирайся на близость"),
+                _locale_pack(locale, "Show up with warmth", "Visa varme", "Будь теплее"),
+                _locale_pack(locale, "Make space for closeness", "Skapa plats for narhet", "Создай пространство для близости"),
             ]),
             "do": _pick_by_day(day, [
-                "Plan a date, a thoughtful compliment, or quality time with your full attention.",
-                "Be present, confident, and generous with affection or appreciation.",
-                "Use today for shared time, open conversation, or something a bit special.",
+                _locale_pack(locale, "Plan a date, a thoughtful compliment, or quality time with your full attention.", "Planera en dejt, en omtanksam komplimang eller kvalitetstid med full narvaro.", "Запланируй свидание, теплый комплимент или качественное время вместе с полным вниманием."),
+                _locale_pack(locale, "Be present, confident, and generous with affection or appreciation.", "Var narvarande, trygg och generos med omtanke eller uppskattning.", "Будь включенным, уверенным и щедрым на тепло и признание."),
+                _locale_pack(locale, "Use today for shared time, open conversation, or something a bit special.", "Anvand dagen for gemensam tid, oppen konversation eller nagot lite extra.", "Используй этот день для совместного времени, открытого разговора или чего-то особенного."),
             ]),
             "say": _pick_by_day(day, [
-                "You look amazing today.",
-                "Let's make time for us later.",
-                "I love being around you when things feel this easy.",
+                _locale_pack(locale, "You look amazing today.", "Du ser fantastisk ut idag.", "Ты сегодня выглядишь потрясающе."),
+                _locale_pack(locale, "Let's make time for us later.", "Lat oss hitta tid for oss senare.", "Давай позже выделим время для нас."),
+                _locale_pack(locale, "I love being around you when things feel this easy.", "Jag alskar att vara nara dig nar allt kanns sa har latt.", "Мне очень нравится быть рядом с тобой, когда всё так легко ощущается."),
             ]),
             "avoid": _pick_by_day(day, [
-                "Avoid being distracted or half-present if she's clearly open to connection.",
-                "Don't waste a good connection window on logistical stress.",
-                "Avoid coldness when warmth would go a long way today.",
+                _locale_pack(locale, "Avoid being distracted or half-present if she's clearly open to connection.", "Var inte distraherad eller halvnarvarande om hon tydligt ar oppen for kontakt.", "Не будь отвлеченным или наполовину включенным, если она явно открыта к близости."),
+                _locale_pack(locale, "Don't waste a good connection window on logistical stress.", "Slosa inte bort ett bra kontaktfonster pa logistisk stress.", "Не трать хорошее окно близости на стресс из-за бытовых дел."),
+                _locale_pack(locale, "Avoid coldness when warmth would go a long way today.", "Undvik kyla nar varme skulle gora stor skillnad idag.", "Избегай холодности, когда сегодня тепло даст гораздо больше."),
             ]),
         }
     else:
         pack = {
             "headline": _pick_by_day(day, [
-                "Keep it low-pressure",
-                "Lead with steadiness",
-                "Make the day simpler",
+                _locale_pack(locale, "Keep it low-pressure", "Hall det utan press", "Снизь давление"),
+                _locale_pack(locale, "Lead with steadiness", "Led med stabilitet", "Держись спокойно и стабильно"),
+                _locale_pack(locale, "Make the day simpler", "Gor dagen enklare", "Сделай день проще"),
             ]),
             "do": _pick_by_day(day, [
-                "Reduce friction: fewer demands, simpler plans, and more practical support.",
-                "Take initiative on something small so she doesn't have to manage it.",
-                "Aim for steadiness and predictability rather than intensity or problem-solving.",
+                _locale_pack(locale, "Reduce friction: fewer demands, simpler plans, and more practical support.", "Minska friktionen: farre krav, enklare planer och mer praktiskt stod.", "Снизь трение: меньше требований, проще планы и больше практической поддержки."),
+                _locale_pack(locale, "Take initiative on something small so she doesn't have to manage it.", "Ta initiativ i nagot litet sa att hon slipper hantera det.", "Возьми на себя что-то небольшое, чтобы ей не пришлось это тянуть."),
+                _locale_pack(locale, "Aim for steadiness and predictability rather than intensity or problem-solving.", "Satsa pa stabilitet och forutsagbarhet i stallet for intensitet eller problemlosning.", "Делай ставку на стабильность и предсказуемость вместо интенсивности и попыток всё решить."),
             ]),
             "say": _pick_by_day(day, [
-                "I can handle this part, you don't need to carry it.",
-                "Let's keep tonight simple.",
-                "I'm on your side, we don't need to force anything today.",
+                _locale_pack(locale, "I can handle this part, you don't need to carry it.", "Jag kan ta den har delen, du behover inte bara den.", "Я возьму эту часть на себя, тебе не нужно тащить всё."),
+                _locale_pack(locale, "Let's keep tonight simple.", "Lat oss halla kvallen enkel.", "Давай сделаем этот вечер простым."),
+                _locale_pack(locale, "I'm on your side, we don't need to force anything today.", "Jag ar pa din sida, vi behover inte tvinga fram nagot idag.", "Я на твоей стороне, сегодня не нужно ничего форсировать."),
             ]),
             "avoid": _pick_by_day(day, [
-                "Avoid pushing for decisions or heavy conversations late in the day.",
-                "Don't argue with the mood; lower the pressure instead.",
-                "Avoid reading sensitivity as rejection or disinterest.",
+                _locale_pack(locale, "Avoid pushing for decisions or heavy conversations late in the day.", "Undvik att pressa fram beslut eller tunga samtal sent pa dagen.", "Не дави с решениями и тяжелыми разговорами ближе к вечеру."),
+                _locale_pack(locale, "Don't argue with the mood; lower the pressure instead.", "Braka inte med stamningen; sank pressen i stallet.", "Не спорь с ее состоянием; лучше снизь давление."),
+                _locale_pack(locale, "Avoid reading sensitivity as rejection or disinterest.", "Tolkar inte kanslighet som avvisande eller ointresse.", "Не воспринимай чувствительность как отвержение или отсутствие интереса."),
             ]),
         }
 
     if stats["need_for_space"] >= 4:
-        pack["headline"] = "Support gently, with room"
-        pack["do"] = "Offer one concrete form of help, then give her more breathing room instead of staying on top of it."
-        pack["say"] = "I'm here if you want me, and I can also give you some space."
-        pack["avoid"] = "Avoid turning care into too many check-ins, follow-up questions, or emotional pressure."
+        pack["headline"] = _locale_pack(locale, "Support gently, with room", "Stod mjukt, med utrymme", "Поддержи мягко, оставляя пространство")
+        pack["do"] = _locale_pack(locale, "Offer one concrete form of help, then give her more breathing room instead of staying on top of it.", "Erbjud en konkret form av hjalp och ge sedan mer luft i stallet for att ligga pa.", "Предложи одну конкретную помощь, а потом дай больше пространства вместо постоянного контроля.")
+        pack["say"] = _locale_pack(locale, "I'm here if you want me, and I can also give you some space.", "Jag ar har om du vill, och jag kan ocksa ge dig lite utrymme.", "Я рядом, если нужен, и могу дать тебе пространство.")
+        pack["avoid"] = _locale_pack(locale, "Avoid turning care into too many check-ins, follow-up questions, or emotional pressure.", "Gor inte omtanke till for manga avstamningar, foljdfragor eller emotionell press.", "Не превращай заботу в слишком частые проверки, уточнения и эмоциональное давление.")
     elif stats["energy"] <= 2 and stats["physical_comfort"] <= 2:
-        pack["headline"] = "Protect her energy"
-        pack["do"] = "Make the day physically easier: simplify plans, lower demands, and help her rest without needing to ask."
-        pack["say"] = "Let's make today lighter. I'll take care of the practical part."
-        pack["avoid"] = "Avoid expecting output, enthusiasm, or long conversations from a depleted day."
+        pack["headline"] = _locale_pack(locale, "Protect her energy", "Skydda hennes energi", "Сохрани ее энергию")
+        pack["do"] = _locale_pack(locale, "Make the day physically easier: simplify plans, lower demands, and help her rest without needing to ask.", "Gor dagen kroppsligt enklare: forenkla planer, sank kraven och hjalp henne att vila utan att hon behover be om det.", "Сделай день физически легче: упрости планы, снизь требования и помоги ей отдохнуть без необходимости просить.")
+        pack["say"] = _locale_pack(locale, "Let's make today lighter. I'll take care of the practical part.", "Lat oss gora dagen lattare. Jag tar hand om det praktiska.", "Давай сделаем этот день легче. Я возьму на себя практическую часть.")
+        pack["avoid"] = _locale_pack(locale, "Avoid expecting output, enthusiasm, or long conversations from a depleted day.", "Forvanta dig inte produktivitet, entusiasm eller langa samtal pa en uttomd dag.", "Не жди продуктивности, энтузиазма или длинных разговоров в истощенный день.")
     elif stats["connection_openness"] >= 4 and stats["social"] >= 4:
-        pack["headline"] = "Use the connection window"
-        pack["do"] = "Choose a warm, active moment together: a date, a walk, flirting, or a slightly more open conversation."
-        pack["say"] = "You feel especially easy to be close to today. Let's make time for us."
-        pack["avoid"] = "Avoid wasting a naturally open day on pure logistics or being emotionally half-present."
+        pack["headline"] = _locale_pack(locale, "Use the connection window", "Anvand kontaktfonstret", "Используй окно близости")
+        pack["do"] = _locale_pack(locale, "Choose a warm, active moment together: a date, a walk, flirting, or a slightly more open conversation.", "Valj ett varmt och aktivt ogonblick tillsammans: en dejt, en promenad, flirt eller ett lite mer oppet samtal.", "Выбери теплый и живой момент вместе: свидание, прогулку, флирт или чуть более открытый разговор.")
+        pack["say"] = _locale_pack(locale, "You feel especially easy to be close to today. Let's make time for us.", "Du kanns extra latt att vara nara idag. Lat oss ta tid for oss.", "Сегодня к тебе особенно легко быть ближе. Давай найдем время для нас.")
+        pack["avoid"] = _locale_pack(locale, "Avoid wasting a naturally open day on pure logistics or being emotionally half-present.", "Slosa inte bort en naturligt oppen dag pa logistik eller halvnarvaro.", "Не трать естественно открытый день только на бытовые вопросы и эмоциональную полу-вовлеченность.")
     elif stats["irritability"] >= 4 and stats["focus"] <= 2:
-        pack["headline"] = "Keep things simple and clear"
-        pack["do"] = "Use short, practical communication and reduce the number of decisions that need attention today."
-        pack["say"] = "We don't need to solve everything today. Let's keep this simple."
-        pack["avoid"] = "Avoid layered conversations, debates, or asking her to process too much at once."
+        pack["headline"] = _locale_pack(locale, "Keep things simple and clear", "Hall allt enkelt och tydligt", "Держи всё простым и ясным")
+        pack["do"] = _locale_pack(locale, "Use short, practical communication and reduce the number of decisions that need attention today.", "Anvand kort och praktisk kommunikation och minska antalet beslut som kravs idag.", "Используй короткую и практичную коммуникацию и сократи число решений, которые требуют внимания сегодня.")
+        pack["say"] = _locale_pack(locale, "We don't need to solve everything today. Let's keep this simple.", "Vi behover inte losa allt idag. Lat oss halla det enkelt.", "Нам не нужно решать всё сегодня. Давай оставим всё простым.")
+        pack["avoid"] = _locale_pack(locale, "Avoid layered conversations, debates, or asking her to process too much at once.", "Undvik lager pa lager-samtal, debatter eller att be henne hantera for mycket pa en gang.", "Избегай многослойных разговоров, споров и просьб переварить слишком многое сразу.")
 
     return pack
 
 
-def _extra_support_lines(phase: str, stats: Dict[str, int], hormones: Dict[str, int], day: int) -> Dict[str, str]:
+def _extra_support_lines(phase: str, stats: Dict[str, int], hormones: Dict[str, int], day: int, locale: str = "en") -> Dict[str, str]:
     body = []
     relationship = []
     regulate = []
 
     if stats["physical_comfort"] <= 2:
-        body.append("Prioritize physical comfort: warmth, rest, lighter plans, and easier food.")
+        body.append(_locale_pack(locale, "Prioritize physical comfort: warmth, rest, lighter plans, and easier food.", "Prioritera fysisk komfort: varme, vila, lattare planer och enklare mat.", "Сделай приоритетом физический комфорт: тепло, отдых, более легкие планы и простую еду."))
     if stats["cravings"] >= 4:
-        body.append("Keep snacks or an easy meal around so basic needs do not become extra friction.")
+        body.append(_locale_pack(locale, "Keep snacks or an easy meal around so basic needs do not become extra friction.", "Ha snacks eller en enkel maltid redo sa att grundbehoven inte blir extra friktion.", "Держи под рукой перекус или простую еду, чтобы базовые потребности не превращались в дополнительное трение."))
     if stats["energy"] <= 2:
-        body.append("Aim for recovery over productivity today: fewer errands, less rushing, more margin.")
+        body.append(_locale_pack(locale, "Aim for recovery over productivity today: fewer errands, less rushing, more margin.", "Satsa pa aterhamtning framfor produktivitet idag: farre arenden, mindre stress, mer luft.", "Сегодня делай ставку на восстановление, а не на продуктивность: меньше дел, меньше спешки, больше запаса."))
     if hormones["progesterone"] >= 65:
-        regulate.append("Higher progesterone often pairs better with steadiness, sleep, and reduced stimulation.")
+        regulate.append(_locale_pack(locale, "Higher progesterone often pairs better with steadiness, sleep, and reduced stimulation.", "Hogre progesteron passar ofta battre med stabilitet, somn och mindre stimulans.", "Более высокий прогестерон часто лучше сочетается со стабильностью, сном и меньшей стимуляцией."))
     if hormones["estrogen"] >= 70 and phase in ("follicular", "ovulatory"):
-        relationship.append("This is a better window for plans, social time, shared momentum, or a date.")
+        relationship.append(_locale_pack(locale, "This is a better window for plans, social time, shared momentum, or a date.", "Detta ar ett battre fonster for planer, social tid, gemensamt momentum eller en dejt.", "Это более удачное окно для планов, общения, общего импульса или свидания."))
     if stats["need_for_space"] >= 4:
-        relationship.append("Support without hovering. Offer presence, then leave breathing room.")
+        relationship.append(_locale_pack(locale, "Support without hovering. Offer presence, then leave breathing room.", "Stod utan att hanga over henne. Visa narvaro och lamna sedan utrymme.", "Поддерживай без нависания. Покажи присутствие, а потом оставь пространство."))
     if stats["connection_openness"] >= 4:
-        relationship.append("Warmth and active attention are more likely to land well today.")
+        relationship.append(_locale_pack(locale, "Warmth and active attention are more likely to land well today.", "Varme och aktiv uppmarksamhet landar troligen bra idag.", "Тепло и активное внимание сегодня, скорее всего, зайдут хорошо."))
     if stats["irritability"] >= 4 or stats["sensitivity"] >= 4:
-        regulate.append("Keep your tone softer than usual and make fewer things urgent.")
+        regulate.append(_locale_pack(locale, "Keep your tone softer than usual and make fewer things urgent.", "Hall tonen mjukare an vanligt och gor farre saker bradskande.", "Держи тон мягче обычного и делай меньше вещей срочными."))
     if stats["focus"] <= 2:
-        regulate.append("Use short, concrete communication instead of layered conversations.")
+        regulate.append(_locale_pack(locale, "Use short, concrete communication instead of layered conversations.", "Anvand kort och konkret kommunikation i stallet for lager pa lager-samtal.", "Используй короткую и конкретную коммуникацию вместо многослойных разговоров."))
     if phase == "ovulatory" and day % 2 == 0:
-        relationship.append("Good day for appreciation, flirtation, or a more expressive check-in.")
+        relationship.append(_locale_pack(locale, "Good day for appreciation, flirtation, or a more expressive check-in.", "Bra dag for uppskattning, flirt eller en mer uttrycksfull check-in.", "Хороший день для признательности, флирта или более выразительного контакта."))
     if phase == "menstrual":
-        body.append("Simple comfort beats optimization today.")
+        body.append(_locale_pack(locale, "Simple comfort beats optimization today.", "Enkel komfort slar optimering idag.", "Сегодня простой комфорт важнее любой оптимизации."))
     if phase == "luteal" and day % 2 == 1:
-        regulate.append("Lower expectations on timing and avoid treating delays as a problem.")
+        regulate.append(_locale_pack(locale, "Lower expectations on timing and avoid treating delays as a problem.", "Sank forvantningarna pa timing och gor inte forseningar till ett problem.", "Снизь ожидания к таймингу и не превращай задержки в проблему."))
 
     def choose(lines: List[str], fallback: str) -> str:
         return lines[0] if lines else fallback
 
     return {
-        "body": choose(body, "Keep the body side easy today: food, rest, and less friction."),
-        "relationship": choose(relationship, "Stay present and supportive without making the day heavier."),
-        "regulate": choose(regulate, "The best move today is reducing pressure and keeping things simple."),
+        "body": choose(body, _locale_pack(locale, "Keep the body side easy today: food, rest, and less friction.", "Hall kroppssidan enkel idag: mat, vila och mindre friktion.", "Сделай телесную сторону дня проще: еда, отдых и меньше трения.")),
+        "relationship": choose(relationship, _locale_pack(locale, "Stay present and supportive without making the day heavier.", "Var narvarande och stodjande utan att gora dagen tyngre.", "Оставайся рядом и поддерживай, не делая день тяжелее.")),
+        "regulate": choose(regulate, _locale_pack(locale, "The best move today is reducing pressure and keeping things simple.", "Basta draget idag ar att minska pressen och halla det enkelt.", "Лучший ход сегодня — снизить давление и оставить всё простым.")),
     }
 
 
@@ -1308,18 +1312,18 @@ def _settings_stat_line(label: str, emoji: str, level: int, *, positive: bool = 
     return f"{emoji} {label}: <b>{_level_word(level, positive=positive)}</b> {_bar(level)}"
 
 
-def _feedback_ack(helpful: bool, phase: str, stats: Dict[str, int]) -> str:
+def _feedback_ack(helpful: bool, phase: str, stats: Dict[str, int], locale: str = "en") -> str:
     if helpful:
         if stats["connection_openness"] >= 4:
-            return "Saved. This helps us learn what works in higher-connection windows."
+            return _locale_pack(locale, "Saved. This helps us learn what works in higher-connection windows.", "Sparat. Det hjalper oss lara vad som fungerar i mer oppna kontaktfonster.", "Сохранено. Это помогает понять, что работает в более открытые окна близости.")
         if stats["need_for_space"] >= 4:
-            return "Saved. This helps us learn how to support better on more sensitive, space-needing days."
-        return "Saved. This helps us learn which types of daily cues land best."
+            return _locale_pack(locale, "Saved. This helps us learn how to support better on more sensitive, space-needing days.", "Sparat. Det hjalper oss lara hur vi stottar battre pa mer kansliga dagar med behov av mer utrymme.", "Сохранено. Это помогает понять, как лучше поддерживать в более чувствительные дни, когда нужно больше пространства.")
+        return _locale_pack(locale, "Saved. This helps us learn which types of daily cues land best.", "Sparat. Det hjalper oss lara vilka typer av dagliga cues som landar bast.", "Сохранено. Это помогает понять, какие типы ежедневных советов заходят лучше всего.")
     if phase == "luteal" or stats["irritability"] >= 4:
-        return "Saved. This tells us we should soften or simplify support on heavier days."
+        return _locale_pack(locale, "Saved. This tells us we should soften or simplify support on heavier days.", "Sparat. Det visar att vi bor mjuka upp eller forenkla stodet under tyngre dagar.", "Сохранено. Это показывает, что в более тяжелые дни поддержку нужно делать мягче и проще.")
     if stats["physical_comfort"] <= 2:
-        return "Saved. This tells us we should adjust more toward comfort and recovery."
-    return "Saved. This helps us refine the model when the advice misses the moment."
+        return _locale_pack(locale, "Saved. This tells us we should adjust more toward comfort and recovery.", "Sparat. Det visar att vi bor justera mer mot komfort och aterhamtning.", "Сохранено. Это показывает, что стоит сильнее смещаться в сторону комфорта и восстановления.")
+    return _locale_pack(locale, "Saved. This helps us refine the model when the advice misses the moment.", "Sparat. Det hjalper oss forfina modellen nar radet missar ogonblicket.", "Сохранено. Это помогает донастроить модель, когда совет не попадает в момент.")
 
 # ----------------------------
 # Rendering
@@ -1337,8 +1341,8 @@ async def render_today(profile: UserProfile) -> str:
     now_stats = snap["stats"]
     hormones = snap["hormones"]
     prev_stats = _phase_stats(yday_num, bounds)
-    cue = _cue_pack(phase, day, now_stats)
-    support = _extra_support_lines(phase, now_stats, hormones, day)
+    cue = _cue_pack(phase, day, now_stats, locale)
+    support = _extra_support_lines(phase, now_stats, hormones, day, locale)
 
     def stat_line(label: str, emoji: str, key: str):
         return f"{emoji} {label}: {_bar(now_stats[key])} {_arrow(now_stats[key], prev_stats[key])}"
@@ -1354,7 +1358,7 @@ async def render_today(profile: UserProfile) -> str:
     return (
         f"<b>{_ui(locale, 'today_for', name=profile.partner_name)}</b>\n"
         f"Day <b>{day}/{profile.cycle_length}</b> · <b>{_phase_name(phase, locale)}</b> {PHASE_EMOJI[phase]}\n"
-        f"{_phase_summary_text(phase, now_stats)}\n\n"
+        f"{_phase_summary_text(phase, now_stats, locale)}\n\n"
         f"<b>{_ui(locale, 'todays_cue')}</b>\n"
         f"<b>{cue['headline']}</b>\n"
         f"{cue['do']}\n\n"
@@ -1578,7 +1582,7 @@ async def render_forecast(profile: UserProfile, days: int = 7) -> str:
             last_phase = ph
 
         st = _phase_stats(cd, bounds)
-        cue = _cue_pack(ph, cd, st)
+        cue = _cue_pack(ph, cd, st, locale)
         hormones = _estimated_hormones(cd, profile.cycle_length, bounds)
         fertility = _fertility_label(cd, bounds)
         if fertility in {"peak", "high"}:
@@ -2014,7 +2018,7 @@ async def _record_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE, h
     _sync_locale(context, profile)
 
     snap = _cycle_snapshot(profile)
-    cue = _cue_pack(snap["phase"], snap["day"], snap["stats"])
+    cue = _cue_pack(snap["phase"], snap["day"], snap["stats"], profile.locale)
     await db_upsert_feedback(
         chat_id=profile.chat_id,
         cue_date=snap["today"].isoformat(),
@@ -2028,7 +2032,7 @@ async def _record_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE, h
         update,
         context,
         (
-            f"{'👍' if helpful else '👎'} {_feedback_ack(helpful, snap['phase'], snap['stats'])}\n\n"
+            f"{'👍' if helpful else '👎'} {_feedback_ack(helpful, snap['phase'], snap['stats'], profile.locale)}\n\n"
             f"Today's cue saved as: <b>{cue['headline']}</b>\n"
             f"Day <b>{snap['day']}/{profile.cycle_length}</b> · "
             f"<b>{_phase_name(snap['phase'], profile.locale)}</b> {PHASE_EMOJI[snap['phase']]}"

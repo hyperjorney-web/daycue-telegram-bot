@@ -573,6 +573,20 @@ UI_TEXT = {
         "need_for_space": "Need for space",
         "cravings": "Cravings",
         "mood": "Mood",
+        "trend_energy": "Energy",
+        "trend_mood": "Mood",
+        "trend_irrit": "Irrit.",
+        "trend_focus": "Focus",
+        "trend_connect": "Connect",
+        "hormone_estrogen": "Estrogen",
+        "hormone_progesterone": "Progesterone",
+        "unknown": "unknown",
+        "day_short": "Day",
+        "days_unit": "days",
+        "level_low": "low",
+        "level_steady": "steady",
+        "level_moderate": "moderate",
+        "level_high": "high",
         "updated": "✅ Updated.",
         "paused_pings": "⏸ Paused daily pings.",
         "resumed_pings": "▶️ Resumed daily pings.",
@@ -675,6 +689,20 @@ UI_TEXT = {
         "need_for_space": "Behov av utrymme",
         "cravings": "Sug",
         "mood": "Humor",
+        "trend_energy": "Energi",
+        "trend_mood": "Humor",
+        "trend_irrit": "Irrit.",
+        "trend_focus": "Fokus",
+        "trend_connect": "Kontakt",
+        "hormone_estrogen": "Ostrogen",
+        "hormone_progesterone": "Progesteron",
+        "unknown": "okant",
+        "day_short": "Dag",
+        "days_unit": "dagar",
+        "level_low": "lag",
+        "level_steady": "stabil",
+        "level_moderate": "medel",
+        "level_high": "hog",
         "updated": "✅ Uppdaterat.",
         "paused_pings": "⏸ Dagliga notiser pausade.",
         "resumed_pings": "▶️ Dagliga notiser aterupptagna.",
@@ -777,6 +805,20 @@ UI_TEXT = {
         "need_for_space": "Потребность в пространстве",
         "cravings": "Тяга",
         "mood": "Настроение",
+        "trend_energy": "Энергия",
+        "trend_mood": "Настр.",
+        "trend_irrit": "Раздр.",
+        "trend_focus": "Фокус",
+        "trend_connect": "Контакт",
+        "hormone_estrogen": "Эстроген",
+        "hormone_progesterone": "Прогестерон",
+        "unknown": "неизвестно",
+        "day_short": "День",
+        "days_unit": "дней",
+        "level_low": "низкий",
+        "level_steady": "ровный",
+        "level_moderate": "умеренный",
+        "level_high": "высокий",
         "updated": "✅ Обновлено.",
         "paused_pings": "⏸ Ежедневные уведомления поставлены на паузу.",
         "resumed_pings": "▶️ Ежедневные уведомления снова включены.",
@@ -819,6 +861,14 @@ def _lt(context: ContextTypes.DEFAULT_TYPE, key: str) -> str:
 def _ui(locale: str, key: str, **kwargs) -> str:
     text = UI_TEXT.get(locale, UI_TEXT["en"]).get(key, UI_TEXT["en"].get(key, key))
     return text.format(**kwargs) if kwargs else text
+
+
+def _skip_words(locale: str) -> set[str]:
+    return {
+        "en": {"skip"},
+        "sv": {"skip", "hoppa over", "hoppaöver", "hoppa-over"},
+        "ru": {"skip", "пропустить", "пропуск"},
+    }.get(locale, {"skip"})
 
 
 def _sync_locale(context: ContextTypes.DEFAULT_TYPE, profile: UserProfile):
@@ -1036,18 +1086,22 @@ def _spark(levels: List[int]) -> str:
     return "".join(parts)
 
 
-def _level_word(level: int, *, positive: bool = True) -> str:
+def _level_word(level: int, *, positive: bool = True, locale: str = "en") -> str:
     if positive:
         if level <= 2:
-            return "low"
-        if level == 3:
-            return "steady"
-        return "high"
+            key = "level_low"
+        elif level == 3:
+            key = "level_steady"
+        else:
+            key = "level_high"
+        return _ui(locale, key)
     if level <= 2:
-        return "low"
-    if level == 3:
-        return "moderate"
-    return "high"
+        key = "level_low"
+    elif level == 3:
+        key = "level_moderate"
+    else:
+        key = "level_high"
+    return _ui(locale, key)
 
 
 def _phase_summary_text(phase: str, stats: Dict[str, int], locale: str = "en") -> str:
@@ -1407,8 +1461,8 @@ def _cycle_snapshot(profile: UserProfile) -> Dict[str, Any]:
     }
 
 
-def _settings_stat_line(label: str, emoji: str, level: int, *, positive: bool = True) -> str:
-    return f"{emoji} {label}: <b>{_level_word(level, positive=positive)}</b> {_bar(level)}"
+def _settings_stat_line(label: str, emoji: str, level: int, locale: str, *, positive: bool = True) -> str:
+    return f"{emoji} {label}: <b>{_level_word(level, positive=positive, locale=locale)}</b> {_bar(level)}"
 
 
 def _feedback_ack(helpful: bool, phase: str, stats: Dict[str, int], locale: str = "en") -> str:
@@ -1456,7 +1510,7 @@ async def render_today(profile: UserProfile) -> str:
 
     return (
         f"<b>{_ui(locale, 'today_for', name=profile.partner_name)}</b>\n"
-        f"Day <b>{day}/{profile.cycle_length}</b> · <b>{_phase_name(phase, locale)}</b> {PHASE_EMOJI[phase]}\n"
+        f"{_ui(locale, 'day_short')} <b>{day}/{profile.cycle_length}</b> · <b>{_phase_name(phase, locale)}</b> {PHASE_EMOJI[phase]}\n"
         f"{_phase_summary_text(phase, now_stats, locale)}\n\n"
         f"<b>{_ui(locale, 'todays_cue')}</b>\n"
         f"<b>{cue['headline']}</b>\n"
@@ -1470,11 +1524,11 @@ async def render_today(profile: UserProfile) -> str:
         f"• {_ui(locale, 'relationship')}: {support['relationship']}\n"
         f"• {_ui(locale, 'regulation')}: {support['regulate']}\n\n"
         f"<b>{_ui(locale, 'signals_today')}</b>\n"
-        f"⚡ {_ui(locale, 'energy')}: <b>{_level_word(now_stats['energy'])}</b> {_bar(now_stats['energy'])}\n"
-        f"🎭 {_ui(locale, 'mood')}: <b>{_level_word(now_stats['mood'])}</b> {_bar(now_stats['mood'])}\n"
-        f"💢 {_ui(locale, 'irritability')}: <b>{_level_word(now_stats['irritability'], positive=False)}</b> {_bar(now_stats['irritability'])}\n"
-        f"🧠 Focus: <b>{_level_word(now_stats['focus'])}</b> {_bar(now_stats['focus'])}\n"
-        f"💞 {_ui(locale, 'connection')}: <b>{_level_word(now_stats['connection_openness'])}</b> {_bar(now_stats['connection_openness'])}\n\n"
+        f"⚡ {_ui(locale, 'energy')}: <b>{_level_word(now_stats['energy'], locale=locale)}</b> {_bar(now_stats['energy'])}\n"
+        f"🎭 {_ui(locale, 'mood')}: <b>{_level_word(now_stats['mood'], locale=locale)}</b> {_bar(now_stats['mood'])}\n"
+        f"💢 {_ui(locale, 'irritability')}: <b>{_level_word(now_stats['irritability'], positive=False, locale=locale)}</b> {_bar(now_stats['irritability'])}\n"
+        f"🧠 {_ui(locale, 'focus')}: <b>{_level_word(now_stats['focus'], locale=locale)}</b> {_bar(now_stats['focus'])}\n"
+        f"💞 {_ui(locale, 'connection')}: <b>{_level_word(now_stats['connection_openness'], locale=locale)}</b> {_bar(now_stats['connection_openness'])}\n\n"
         f"<b>{_ui(locale, 'more_detail')}</b>\n"
         f"{stat_line(_ui(locale, 'social_drive'), '🗣️', 'social')}\n"
         f"{stat_line(_ui(locale, 'cravings'), '🍫', 'cravings')}\n"
@@ -1482,8 +1536,8 @@ async def render_today(profile: UserProfile) -> str:
         f"{stat_line(_ui(locale, 'need_for_space'), '🌫️', 'need_for_space')}\n"
         f"{stat_line(_ui(locale, 'physical_comfort'), '🛋️', 'physical_comfort')}\n"
         f"\n<b>{_ui(locale, 'estimated_hormone_picture')}</b>\n"
-        f"Estrogen <b>{hormones['estrogen']}</b>/100 · "
-        f"Progesterone <b>{hormones['progesterone']}</b>/100 · "
+        f"{_ui(locale, 'hormone_estrogen')} <b>{hormones['estrogen']}</b>/100 · "
+        f"{_ui(locale, 'hormone_progesterone')} <b>{hormones['progesterone']}</b>/100 · "
         f"LH <b>{hormones['lh']}</b>/100 · "
         f"FSH <b>{hormones['fsh']}</b>/100"
         f"{change_txt}"
@@ -1511,7 +1565,7 @@ async def render_settings(profile: UserProfile) -> str:
 
     history_lines = []
     for item in history:
-        history_lines.append(f"• {item['period_start']} → {item['period_end'] or 'unknown'}")
+        history_lines.append(f"• {item['period_start']} → {item['period_end'] or _ui(locale, 'unknown')}")
     history_block = "\n".join(history_lines) if history_lines else _ui(locale, "no_history")
 
     return (
@@ -1522,17 +1576,17 @@ async def render_settings(profile: UserProfile) -> str:
         f"{_ui(locale, 'paused')}: <b>{_ui(locale, 'yes') if profile.paused else _ui(locale, 'no')}</b>\n"
         f"{_ui(locale, 'notify')}: <b>{profile.notify_time}</b> ({profile.tz})\n\n"
         f"<b>{_ui(locale, 'cycle')}</b>\n"
-        f"{_ui(locale, 'today_day')}: <b>Day {day}/{profile.cycle_length}</b>\n"
+        f"{_ui(locale, 'today_day')}: <b>{_ui(locale, 'day_short')} {day}/{profile.cycle_length}</b>\n"
         f"{_ui(locale, 'phase')}: <b>{_phase_name(phase, locale)}</b> {PHASE_EMOJI[phase]}\n"
-        f"{_ui(locale, 'last_period')}: <b>{profile.period_start}</b> → <b>{profile.period_end or 'unknown'}</b>\n"
-        f"{_ui(locale, 'estimated_period_length')}: <b>{snap['period_len']} days</b>\n"
+        f"{_ui(locale, 'last_period')}: <b>{profile.period_start}</b> → <b>{profile.period_end or _ui(locale, 'unknown')}</b>\n"
+        f"{_ui(locale, 'estimated_period_length')}: <b>{snap['period_len']} {_ui(locale, 'days_unit')}</b>\n"
         f"{_ui(locale, 'next_shift')}: {next_shift}\n\n"
         f"<b>{_ui(locale, 'phase_description')}</b>\n"
         f"{desc}\n\n"
         f"<b>{_ui(locale, 'quick_signal_check')}</b>\n"
-        f"{_settings_stat_line(_ui(locale, 'energy'), '⚡', stats['energy'])}\n"
-        f"{_settings_stat_line(_ui(locale, 'mood'), '🎭', stats['mood'])}\n"
-        f"{_settings_stat_line(_ui(locale, 'irritability'), '💢', stats['irritability'], positive=False)}\n\n"
+        f"{_settings_stat_line(_ui(locale, 'energy'), '⚡', stats['energy'], locale)}\n"
+        f"{_settings_stat_line(_ui(locale, 'mood'), '🎭', stats['mood'], locale)}\n"
+        f"{_settings_stat_line(_ui(locale, 'irritability'), '💢', stats['irritability'], locale, positive=False)}\n\n"
         f"<b>{_ui(locale, 'recent_period_history')}</b>\n"
         f"{history_block}\n\n"
         f"{_ui(locale, 'settings_stats_hint', stats=_btn(locale, BTN_STATS))}\n\n"
@@ -1563,31 +1617,31 @@ async def render_stats(profile: UserProfile) -> str:
 
     return (
         f"<b>{_ui(locale, 'stats_title')}</b>\n"
-        f"{profile.partner_name} · Day <b>{day}/{profile.cycle_length}</b> · "
+        f"{profile.partner_name} · {_ui(locale, 'day_short')} <b>{day}/{profile.cycle_length}</b> · "
         f"<b>{_phase_name(phase, locale)}</b> {PHASE_EMOJI[phase]}\n\n"
         f"<b>{_ui(locale, 'cycle_path')}</b>\n"
         f"{_cycle_path(day, bounds, profile.cycle_length)}\n"
         f"{_ui(locale, 'day_marker', day=day, cycle_len=profile.cycle_length)}\n\n"
         f"<b>{_ui(locale, 'current_dimensions')}</b>\n"
-        f"{_settings_stat_line(_ui(locale, 'energy'), '⚡', stats['energy'])}\n"
-        f"{_settings_stat_line(_ui(locale, 'mood'), '🎭', stats['mood'])}\n"
-        f"{_settings_stat_line(_ui(locale, 'social_drive'), '🗣️', stats['social'])}\n"
-        f"{_settings_stat_line(_ui(locale, 'focus'), '🧠', stats['focus'])}\n"
-        f"{_settings_stat_line(_ui(locale, 'connection_openness'), '💞', stats['connection_openness'])}\n"
-        f"{_settings_stat_line(_ui(locale, 'physical_comfort'), '🛋️', stats['physical_comfort'])}\n"
-        f"{_settings_stat_line(_ui(locale, 'sensitivity'), '🫶', stats['sensitivity'], positive=False)}\n"
-        f"{_settings_stat_line(_ui(locale, 'need_for_space'), '🌫️', stats['need_for_space'], positive=False)}\n"
-        f"{_settings_stat_line(_ui(locale, 'cravings'), '🍫', stats['cravings'], positive=False)}\n"
-        f"{_settings_stat_line(_ui(locale, 'irritability'), '💢', stats['irritability'], positive=False)}\n\n"
+        f"{_settings_stat_line(_ui(locale, 'energy'), '⚡', stats['energy'], locale)}\n"
+        f"{_settings_stat_line(_ui(locale, 'mood'), '🎭', stats['mood'], locale)}\n"
+        f"{_settings_stat_line(_ui(locale, 'social_drive'), '🗣️', stats['social'], locale)}\n"
+        f"{_settings_stat_line(_ui(locale, 'focus'), '🧠', stats['focus'], locale)}\n"
+        f"{_settings_stat_line(_ui(locale, 'connection_openness'), '💞', stats['connection_openness'], locale)}\n"
+        f"{_settings_stat_line(_ui(locale, 'physical_comfort'), '🛋️', stats['physical_comfort'], locale)}\n"
+        f"{_settings_stat_line(_ui(locale, 'sensitivity'), '🫶', stats['sensitivity'], locale, positive=False)}\n"
+        f"{_settings_stat_line(_ui(locale, 'need_for_space'), '🌫️', stats['need_for_space'], locale, positive=False)}\n"
+        f"{_settings_stat_line(_ui(locale, 'cravings'), '🍫', stats['cravings'], locale, positive=False)}\n"
+        f"{_settings_stat_line(_ui(locale, 'irritability'), '💢', stats['irritability'], locale, positive=False)}\n\n"
         f"<b>{_ui(locale, 'trend_window')}</b>\n"
-        f"Energy   {energy_curve}\n"
-        f"Mood     {mood_curve}\n"
-        f"Irrit.   {irrit_curve}\n"
-        f"Focus    {focus_curve}\n"
-        f"Connect  {connect_curve}\n\n"
+        f"{_ui(locale, 'trend_energy')}   {energy_curve}\n"
+        f"{_ui(locale, 'trend_mood')}   {mood_curve}\n"
+        f"{_ui(locale, 'trend_irrit')}   {irrit_curve}\n"
+        f"{_ui(locale, 'trend_focus')}   {focus_curve}\n"
+        f"{_ui(locale, 'trend_connect')}  {connect_curve}\n\n"
         f"<b>{_ui(locale, 'estimated_hormone_picture')}</b>\n"
-        f"• Estrogen: <b>{hormones['estrogen']}</b>/100\n"
-        f"• Progesterone: <b>{hormones['progesterone']}</b>/100\n"
+        f"• {_ui(locale, 'hormone_estrogen')}: <b>{hormones['estrogen']}</b>/100\n"
+        f"• {_ui(locale, 'hormone_progesterone')}: <b>{hormones['progesterone']}</b>/100\n"
         f"• LH: <b>{hormones['lh']}</b>/100\n"
         f"• FSH: <b>{hormones['fsh']}</b>/100\n\n"
         f"<b>{_ui(locale, 'how_to_read_this')}</b>\n"
@@ -1615,7 +1669,7 @@ async def render_insights(profile: UserProfile) -> str:
         phase = row["phase"]
         phase_lines.append(
             f"• {_phase_name(phase, locale)} {PHASE_EMOJI.get(phase, '')}: "
-            f"{helpful_count}/{total} helpful ({rate}%)"
+            f"{helpful_count}/{total} {_ui(locale, 'helpful_count').lower()} ({rate}%)"
         )
 
     latest_lines = []
@@ -1627,9 +1681,9 @@ async def render_insights(profile: UserProfile) -> str:
             f"{row['cue_headline']}"
         )
 
-    avg_energy = summary["avg_energy"] if summary["avg_energy"] is not None else "n/a"
-    avg_irrit = summary["avg_irritability"] if summary["avg_irritability"] is not None else "n/a"
-    avg_connect = summary["avg_connection"] if summary["avg_connection"] is not None else "n/a"
+    avg_energy = summary["avg_energy"] if summary["avg_energy"] is not None else "—"
+    avg_irrit = summary["avg_irritability"] if summary["avg_irritability"] is not None else "—"
+    avg_connect = summary["avg_connection"] if summary["avg_connection"] is not None else "—"
 
     return (
         f"<b>{_ui(locale, 'insights')}</b>\n\n"
@@ -1687,12 +1741,12 @@ async def render_forecast(profile: UserProfile, days: int = 7) -> str:
         if fertility in {"peak", "high"}:
             fertile_points.append(f"• {d.isoformat()} - {_fertility_text(fertility, locale)} {_ui(locale, 'fertility').lower()}")
         lines.append(
-            f"{d.isoformat()} · Day {cd}/{profile.cycle_length} · {_phase_name(ph, locale)} {PHASE_EMOJI[ph]}\n"
+            f"{d.isoformat()} · {_ui(locale, 'day_short')} {cd}/{profile.cycle_length} · {_phase_name(ph, locale)} {PHASE_EMOJI[ph]}\n"
             f"• {_ui(locale, 'cue')}: {cue['headline']}\n"
-            f"• {_ui(locale, 'energy')} {_level_word(st['energy'])} · {_ui(locale, 'irritability')} {_level_word(st['irritability'], positive=False)} · "
-            f"{_ui(locale, 'connection')} {_level_word(st['connection_openness'])}\n"
+            f"• {_ui(locale, 'energy')} {_level_word(st['energy'], locale=locale)} · {_ui(locale, 'irritability')} {_level_word(st['irritability'], positive=False, locale=locale)} · "
+            f"{_ui(locale, 'connection')} {_level_word(st['connection_openness'], locale=locale)}\n"
             f"• {_ui(locale, 'fertility')}: {_fertility_text(fertility, locale)}\n"
-            f"• Est/P4: {hormones['estrogen']}/{hormones['progesterone']}"
+            f"• {_ui(locale, 'hormone_estrogen')}/{_ui(locale, 'hormone_progesterone')}: {hormones['estrogen']}/{hormones['progesterone']}"
         )
 
     lines.append(f"\n<b>{_ui(locale, 'important_shifts')}</b>")
@@ -1748,7 +1802,7 @@ async def o_dob(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _send(update, context, _lt(context, "dob"))
         return O_DOB
     t = _norm(update.message.text).lower()
-    if t == "skip":
+    if t in _skip_words(_lang(context)):
         context.user_data["partner_dob"] = None
     else:
         parsed = _parse_flexible_date_input(t, tz_name=_default_tz(), allow_without_year=False)
@@ -1792,7 +1846,7 @@ async def o_end(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _send(update, context, _lt(context, "end"), reply_markup=_date_kb(_lang(context)))
         return O_END
     t = _norm(update.message.text).lower()
-    if t == "skip":
+    if t in _skip_words(_lang(context)):
         context.user_data["period_end"] = None
     else:
         parsed = _parse_flexible_date_input(t, tz_name=_default_tz(), allow_without_year=True)
@@ -2103,7 +2157,7 @@ async def u_end(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if _is_menu_press(update.message.text):
         await _send(update, context, _ui(profile.locale, "update_period_step2_short"), reply_markup=_date_kb(profile.locale))
         return U_END
-    if t == "skip":
+    if t in _skip_words(profile.locale):
         return await _save_period_update(update, context, start_s, None)
     end_s = _parse_flexible_date_input(t, tz_name=profile.tz, allow_without_year=True)
     if not end_s:
@@ -2138,7 +2192,7 @@ async def _record_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE, h
         (
             f"{'👍' if helpful else '👎'} {_feedback_ack(helpful, snap['phase'], snap['stats'], profile.locale)}\n\n"
             f"{_ui(profile.locale, 'cue_saved', headline=cue['headline'])}\n"
-            f"Day <b>{snap['day']}/{profile.cycle_length}</b> · "
+            f"{_ui(profile.locale, 'day_short')} <b>{snap['day']}/{profile.cycle_length}</b> · "
             f"<b>{_phase_name(snap['phase'], profile.locale)}</b> {PHASE_EMOJI[snap['phase']]}"
         ),
     )

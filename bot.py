@@ -71,6 +71,38 @@ MENU_KB = ReplyKeyboardMarkup(
 # ----------------------------
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 TIME_RE = re.compile(r"^\d{2}:\d{2}$")
+DATE_PARTIAL_RE = re.compile(r"^(\d{1,2})[.\-/ ](\d{1,2})(?:[.\-/ ](\d{2,4}))?$")
+
+DATE_TODAY = "📅 Today"
+DATE_YESTERDAY = "📅 Yesterday"
+TIME_MORNING = "🌅 Morning (08:00)"
+TIME_AFTER_WORK = "💼 After work (18:00)"
+TIME_EVENING = "🌙 Evening (21:00)"
+LANG_EN = "🇬🇧 English"
+LANG_SV = "🇸🇪 Svenska"
+LANG_RU = "🇷🇺 Русский"
+LANG_MAP = {LANG_EN: "en", LANG_SV: "sv", LANG_RU: "ru"}
+
+LANG_KB = ReplyKeyboardMarkup(
+    [[LANG_EN, LANG_SV], [LANG_RU]],
+    resize_keyboard=True,
+    one_time_keyboard=False,
+    input_field_placeholder="Language",
+)
+
+DATE_KB = ReplyKeyboardMarkup(
+    [[DATE_TODAY, DATE_YESTERDAY], [BTN_TODAY, BTN_SETTINGS]],
+    resize_keyboard=True,
+    one_time_keyboard=False,
+    input_field_placeholder="Date",
+)
+
+TIME_KB = ReplyKeyboardMarkup(
+    [[TIME_MORNING, TIME_AFTER_WORK], [TIME_EVENING, BTN_SETTINGS]],
+    resize_keyboard=True,
+    one_time_keyboard=False,
+    input_field_placeholder="Time",
+)
 
 @dataclass
 class UserProfile:
@@ -82,6 +114,7 @@ class UserProfile:
     cycle_length: int               # 21-35
     notify_time: str                # HH:MM
     tz: str                         # IANA timezone
+    locale: str = "en"
     paused: bool = False
 
 # ----------------------------
@@ -99,6 +132,7 @@ CREATE TABLE IF NOT EXISTS users (
   cycle_length INT NOT NULL,
   notify_time TEXT NOT NULL,
   tz TEXT NOT NULL DEFAULT 'Europe/Stockholm',
+  locale TEXT NOT NULL DEFAULT 'en',
   paused BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -169,6 +203,7 @@ async def db_fetch_user(chat_id: int) -> Optional[UserProfile]:
             cycle_length=int(row["cycle_length"]),
             notify_time=row["notify_time"],
             tz=row["tz"],
+            locale=row["locale"] or "en",
             paused=bool(row["paused"]),
         )
 
@@ -177,8 +212,8 @@ async def db_upsert_user(p: UserProfile) -> None:
     async with DB_POOL.acquire() as conn:
         await conn.execute(
             """
-            INSERT INTO users(chat_id, partner_name, partner_dob, period_start, period_end, cycle_length, notify_time, tz, paused)
-            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)
+            INSERT INTO users(chat_id, partner_name, partner_dob, period_start, period_end, cycle_length, notify_time, tz, locale, paused)
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
             ON CONFLICT(chat_id) DO UPDATE SET
               partner_name=EXCLUDED.partner_name,
               partner_dob=EXCLUDED.partner_dob,
@@ -187,6 +222,7 @@ async def db_upsert_user(p: UserProfile) -> None:
               cycle_length=EXCLUDED.cycle_length,
               notify_time=EXCLUDED.notify_time,
               tz=EXCLUDED.tz,
+              locale=EXCLUDED.locale,
               paused=EXCLUDED.paused,
               updated_at=now()
             """,
@@ -198,6 +234,7 @@ async def db_upsert_user(p: UserProfile) -> None:
             int(p.cycle_length),
             p.notify_time,
             p.tz,
+            p.locale,
             bool(p.paused),
         )
 
@@ -311,6 +348,30 @@ async def db_feedback_summary(chat_id: int, days: int = 14) -> Dict[str, Any]:
         "latest": latest,
     }
 
+
+async def db_fetch_period_history(chat_id: int, limit: int = 3) -> List[Dict[str, Any]]:
+    assert DB_POOL
+    async with DB_POOL.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT period_start, period_end, created_at
+            FROM period_log
+            WHERE chat_id=$1
+            ORDER BY period_start DESC, created_at DESC
+            LIMIT $2
+            """,
+            chat_id,
+            limit,
+        )
+    return [
+        {
+            "period_start": row["period_start"].isoformat(),
+            "period_end": row["period_end"].isoformat() if row["period_end"] else None,
+            "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+        }
+        for row in rows
+    ]
+
 # ----------------------------
 # Copy backend (DB) with caching + fallbacks
 # ----------------------------
@@ -327,6 +388,57 @@ FALLBACK_COPY: Dict[str, str] = {
     "help_ovulatory": "Connection + compliments. Great for dates, deeper talks, collaboration.",
     "help_luteal": "Reassure, don’t debate. Lower demands. Provide space + stability.",
 }
+
+LANG_TEXT = {
+    "en": {
+        "welcome": "Welcome to <b>Daycue</b>.\n\nChoose a language first.",
+        "lang_invalid": "Choose one of the language buttons below.",
+        "nick": "1/6 - Enter a partner label or nickname.\nA real name is not required. Example: <b>Anna</b> or <b>Partner</b>",
+        "nick_short": "Label too short.\n\n1/6 - Enter a partner label or nickname (2+ letters)",
+        "dob": "2/6 - Partner DOB.\nUse <b>YYYY-MM-DD</b> or <b>DD.MM.YYYY</b>, or type <b>skip</b>.",
+        "start": "3/6 - Last period START date.\nYou can use <b>5.4</b>, <b>05/04</b>, <b>2026-04-05</b>, or tap a quick option below.",
+        "end": "4/6 - Last period END date or type <b>skip</b>.\nSame formats work here too: <b>8.4</b>, <b>08/04</b>, <b>2026-04-08</b>.",
+        "cycle": "5/6 - Cycle length in days (21-35). Example: 28",
+        "time": "6/6 - Daily notification time.\nTap a quick option or enter your own <b>HH:MM</b>.\nExamples: <b>08:00</b>, <b>18:00</b>, <b>21:00</b>.",
+        "setup_done": "✅ Setup complete.",
+        "cancelled": "Onboarding cancelled.",
+    },
+    "sv": {
+        "welcome": "Valkommen till <b>Daycue</b>.\n\nValj sprak forst.",
+        "lang_invalid": "Valj ett av sprakknapparna nedan.",
+        "nick": "1/6 - Ange ett namn eller en etikett for partnern.\nRiktigt namn behovs inte. Exempel: <b>Anna</b> eller <b>Partner</b>",
+        "nick_short": "For kort namn.\n\n1/6 - Ange ett namn eller en etikett (minst 2 tecken)",
+        "dob": "2/6 - Partnerns fodelsedatum.\nAnvand <b>YYYY-MM-DD</b> eller <b>DD.MM.YYYY</b>, eller skriv <b>skip</b>.",
+        "start": "3/6 - Startdatum for senaste mens.\nDu kan skriva <b>5.4</b>, <b>05/04</b>, <b>2026-04-05</b>, eller valja nedan.",
+        "end": "4/6 - Slutdatum for senaste mens eller skriv <b>skip</b>.\nSamma format fungerar har: <b>8.4</b>, <b>08/04</b>, <b>2026-04-08</b>.",
+        "cycle": "5/6 - Cykellangd i dagar (21-35). Exempel: 28",
+        "time": "6/6 - Tid for daglig notis.\nValj ett snabbt alternativ eller skriv <b>HH:MM</b> sjalv.\nExempel: <b>08:00</b>, <b>18:00</b>, <b>21:00</b>.",
+        "setup_done": "✅ Installning klar.",
+        "cancelled": "Onboarding avbruten.",
+    },
+    "ru": {
+        "welcome": "Добро пожаловать в <b>Daycue</b>.\n\nСначала выбери язык.",
+        "lang_invalid": "Выбери один из языков ниже.",
+        "nick": "1/6 - Введи ярлык или ник для партнера.\nНастоящее имя не обязательно. Например: <b>Anna</b> или <b>Partner</b>",
+        "nick_short": "Слишком коротко.\n\n1/6 - Введи ярлык или ник (минимум 2 символа)",
+        "dob": "2/6 - Дата рождения партнера.\nМожно <b>YYYY-MM-DD</b> или <b>DD.MM.YYYY</b>, либо <b>skip</b>.",
+        "start": "3/6 - Дата начала последних месячных.\nМожно ввести <b>5.4</b>, <b>05/04</b>, <b>2026-04-05</b> или выбрать ниже.",
+        "end": "4/6 - Дата окончания последних месячных или <b>skip</b>.\nПодойдут форматы <b>8.4</b>, <b>08/04</b>, <b>2026-04-08</b>.",
+        "cycle": "5/6 - Длина цикла в днях (21-35). Например: 28",
+        "time": "6/6 - Время ежедневного уведомления.\nВыбери готовый вариант или введи свое <b>HH:MM</b>.\nПримеры: <b>08:00</b>, <b>18:00</b>, <b>21:00</b>.",
+        "setup_done": "✅ Настройка завершена.",
+        "cancelled": "Онбординг отменен.",
+    },
+}
+
+
+def _lang(context: ContextTypes.DEFAULT_TYPE) -> str:
+    return context.user_data.get("locale", "en")
+
+
+def _lt(context: ContextTypes.DEFAULT_TYPE, key: str) -> str:
+    locale = _lang(context)
+    return LANG_TEXT.get(locale, LANG_TEXT["en"]).get(key, LANG_TEXT["en"][key])
 
 async def copy_get(key: str, locale: str = "en", phase: Optional[str] = None) -> str:
     now = asyncio.get_running_loop().time()
@@ -376,6 +488,62 @@ def _today_in_tz(tz_name: str) -> dt.date:
 def _parse_time_hhmm(s: str) -> dt.time:
     h, m = s.split(":")
     return dt.time(int(h), int(m))
+
+
+def _parse_notify_input(s: str) -> Optional[str]:
+    text = _norm(s)
+    preset_map = {
+        TIME_MORNING: "08:00",
+        TIME_AFTER_WORK: "18:00",
+        TIME_EVENING: "21:00",
+        "morning": "08:00",
+        "after work": "18:00",
+        "evening": "21:00",
+    }
+    lowered = text.lower()
+    if lowered in preset_map:
+        return preset_map[lowered]
+    if text in preset_map:
+        return preset_map[text]
+    if TIME_RE.match(text):
+        _parse_time_hhmm(text)
+        return text
+    return None
+
+
+def _parse_flexible_date_input(s: str, *, tz_name: str, allow_without_year: bool = False) -> Optional[str]:
+    text = _norm(s).lower()
+    today = _today_in_tz(tz_name)
+
+    if text in {"today", DATE_TODAY.lower()}:
+        return today.isoformat()
+    if text in {"yesterday", DATE_YESTERDAY.lower()}:
+        return (today - dt.timedelta(days=1)).isoformat()
+
+    if DATE_RE.match(text):
+        return dt.date.fromisoformat(text).isoformat()
+
+    match = DATE_PARTIAL_RE.match(text)
+    if not match:
+        return None
+
+    day = int(match.group(1))
+    month = int(match.group(2))
+    year_raw = match.group(3)
+
+    if year_raw:
+        year = int(year_raw)
+        if year < 100:
+            year += 2000
+        return dt.date(year, month, day).isoformat()
+
+    if not allow_without_year:
+        return None
+
+    inferred = dt.date(today.year, month, day)
+    if inferred > today:
+        inferred = dt.date(today.year - 1, month, day)
+    return inferred.isoformat()
 
 def _compute_period_length(start: str, end: Optional[str]) -> int:
     if not end:
@@ -602,6 +770,19 @@ def _phase_window_values(
         d = ((center_day - 1 + offset) % cycle_len) + 1
         values.append(_phase_stats(d, bounds)[key])
     return values
+
+
+def _fertility_label(day: int, bounds: Dict[str, Tuple[int, int]]) -> str:
+    ov_start, ov_end = bounds["ovulatory"]
+    ov_center = (ov_start + ov_end) // 2
+    distance = abs(day - ov_center)
+    if distance == 0:
+        return "peak"
+    if distance <= 1:
+        return "high"
+    if distance <= 2:
+        return "elevated"
+    return "low"
 
 
 def _pick_by_day(day: int, options: List[str]) -> str:
@@ -893,6 +1074,7 @@ async def render_settings(profile: UserProfile) -> str:
     day = snap["day"]
     stats = snap["stats"]
     desc = await copy_get(f"phase_desc_{phase}", phase=phase)
+    history = await db_fetch_period_history(profile.chat_id, 3)
 
     next_shift = "No phase switch left in this cycle."
     if snap["next_change"] and snap["next_phase"]:
@@ -901,10 +1083,16 @@ async def render_settings(profile: UserProfile) -> str:
             f"{PHASE_NAME[snap['next_phase']]} {PHASE_EMOJI[snap['next_phase']]}"
         )
 
+    history_lines = []
+    for item in history:
+        history_lines.append(f"• {item['period_start']} → {item['period_end'] or 'unknown'}")
+    history_block = "\n".join(history_lines) if history_lines else "• No period history yet."
+
     return (
         f"<b>Settings</b>\n\n"
         f"<b>Partner</b>\n"
         f"Name: <b>{profile.partner_name}</b>\n"
+        f"Language: <b>{profile.locale}</b>\n"
         f"Paused: <b>{'yes' if profile.paused else 'no'}</b>\n"
         f"Notify: <b>{profile.notify_time}</b> ({profile.tz})\n\n"
         f"<b>Cycle</b>\n"
@@ -919,11 +1107,14 @@ async def render_settings(profile: UserProfile) -> str:
         f"{_settings_stat_line('Energy', '⚡', stats['energy'])}\n"
         f"{_settings_stat_line('Mood', '🎭', stats['mood'])}\n"
         f"{_settings_stat_line('Irritability', '💢', stats['irritability'], positive=False)}\n\n"
+        f"<b>Recent period history</b>\n"
+        f"{history_block}\n\n"
         f"Open <b>{BTN_STATS}</b> or use <b>/stats</b> for the full stat breakdown, cycle path, and hormone picture.\n\n"
         f"<b>Commands</b>\n"
-        f"• /update_period START [END]\n"
+        f"• /update_period\n"
         f"• /set_time HH:MM\n"
         f"• /set_cycle 21-35\n"
+        f"• /set_lang en|sv|ru\n"
         f"• /pause or /resume\n"
         f"• /re_onboard"
     )
@@ -1047,6 +1238,7 @@ async def render_forecast(profile: UserProfile, days: int = 7) -> str:
     lines = [f"<b>Next {days} days for {profile.partner_name}</b>\n"]
     last_phase = None
     change_points: List[str] = []
+    fertile_points: List[str] = []
 
     for i in range(days):
         d = today + dt.timedelta(days=i)
@@ -1062,104 +1254,139 @@ async def render_forecast(profile: UserProfile, days: int = 7) -> str:
         st = _phase_stats(cd, bounds)
         cue = _cue_pack(ph, cd, st)
         hormones = _estimated_hormones(cd, profile.cycle_length, bounds)
+        fertility = _fertility_label(cd, bounds)
+        if fertility in {"peak", "high"}:
+            fertile_points.append(f"• {d.isoformat()} - {fertility} fertility")
         lines.append(
             f"{d.isoformat()} · Day {cd}/{profile.cycle_length} · {PHASE_NAME[ph]} {PHASE_EMOJI[ph]}\n"
             f"• Cue: {cue['headline']}\n"
             f"• Energy {_level_word(st['energy'])} · Irritability {_level_word(st['irritability'], positive=False)} · "
             f"Connection {_level_word(st['connection_openness'])}\n"
+            f"• Fertility: {fertility}\n"
             f"• Est/P4: {hormones['estrogen']}/{hormones['progesterone']}"
         )
 
     lines.append("\n<b>Important shifts</b>")
     lines.append("\n".join(change_points) if change_points else "• No phase switch within this window.")
+    lines.append("\n<b>Fertility window</b>")
+    lines.append("\n".join(fertile_points) if fertile_points else "• No high-fertility day inside this forecast window.")
     return "\n".join(lines)
 
 # ----------------------------
 # Telegram send helper
 # ----------------------------
-async def _send(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
+async def _send(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, reply_markup=None):
+    markup = reply_markup or MENU_KB
     if update.message:
-        await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=MENU_KB)
+        await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=markup)
     else:
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=text, parse_mode=ParseMode.HTML, reply_markup=MENU_KB)
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text, parse_mode=ParseMode.HTML, reply_markup=markup)
 
 # ----------------------------
 # Onboarding (menu always visible + menu presses don't break steps)
 # ----------------------------
-(O_NICK, O_DOB, O_START, O_END, O_CYCLE, O_TIME) = range(6)
+(O_LANG, O_NICK, O_DOB, O_START, O_END, O_CYCLE, O_TIME, U_START, U_END) = range(9)
 
 async def start_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await _send(update, context,
-        "Welcome to <b>Daycue</b>.\n\n"
-        "We'll set up a simple daily support cue for your partner.\n\n"
-        "1/6 - Enter partner nickname (example: Anna)"
-    )
+    context.user_data["locale"] = "en"
+    await _send(update, context, LANG_TEXT["en"]["welcome"], reply_markup=LANG_KB)
+    return O_LANG
+
+
+async def o_lang(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    selected = LANG_MAP.get(_norm(update.message.text))
+    if not selected:
+        await _send(update, context, LANG_TEXT["en"]["lang_invalid"], reply_markup=LANG_KB)
+        return O_LANG
+    context.user_data["locale"] = selected
+    await _send(update, context, _lt(context, "nick"))
     return O_NICK
 
 async def o_nick(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if _is_menu_press(update.message.text):
-        await _send(update, context, "Finish onboarding first 🙂\n\n1/6 - Enter partner nickname (example: Anna)")
+        await _send(update, context, _lt(context, "nick"))
         return O_NICK
     nick = _norm(update.message.text)
     if len(nick) < 2:
-        await _send(update, context, "Nickname too short.\n\n1/6 - Enter partner nickname (2+ letters)")
+        await _send(update, context, _lt(context, "nick_short"))
         return O_NICK
     context.user_data["partner_name"] = nick
-    await _send(update, context, "2/6 - Partner DOB (YYYY-MM-DD) or type <b>skip</b>")
+    await _send(update, context, _lt(context, "dob"))
     return O_DOB
 
 async def o_dob(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if _is_menu_press(update.message.text):
-        await _send(update, context, "Finish onboarding first 🙂\n\n2/6 - Partner DOB (YYYY-MM-DD) or type <b>skip</b>")
+        await _send(update, context, _lt(context, "dob"))
         return O_DOB
     t = _norm(update.message.text).lower()
     if t == "skip":
         context.user_data["partner_dob"] = None
     else:
-        if not DATE_RE.match(t):
-            await _send(update, context, "Invalid date.\n\n2/6 - Partner DOB (YYYY-MM-DD) or type <b>skip</b>")
+        parsed = _parse_flexible_date_input(t, tz_name=_default_tz(), allow_without_year=False)
+        if not parsed:
+            await _send(update, context, "Invalid date.\n\nUse <b>YYYY-MM-DD</b> or <b>DD.MM.YYYY</b>, or type <b>skip</b>.")
             return O_DOB
-        dt.date.fromisoformat(t)
-        context.user_data["partner_dob"] = t
-    await _send(update, context, "3/6 - Last period START date (YYYY-MM-DD)")
+        context.user_data["partner_dob"] = parsed
+    await _send(
+        update,
+        context,
+        _lt(context, "start"),
+        reply_markup=DATE_KB,
+    )
     return O_START
 
 async def o_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if _is_menu_press(update.message.text):
-        await _send(update, context, "Finish onboarding first 🙂\n\n3/6 - Last period START date (YYYY-MM-DD)")
+        await _send(update, context, _lt(context, "start"), reply_markup=DATE_KB)
         return O_START
     t = _norm(update.message.text)
-    if not DATE_RE.match(t):
-        await _send(update, context, "Invalid date.\n\n3/6 - Last period START date (YYYY-MM-DD)")
+    parsed = _parse_flexible_date_input(t, tz_name=_default_tz(), allow_without_year=True)
+    if not parsed:
+        await _send(
+            update,
+            context,
+            "Invalid date.\n\nTry <b>5.4</b>, <b>05/04</b>, <b>2026-04-05</b>, or use <b>📅 Today</b>/<b>📅 Yesterday</b>.",
+            reply_markup=DATE_KB,
+        )
         return O_START
-    dt.date.fromisoformat(t)
-    context.user_data["period_start"] = t
-    await _send(update, context, "4/6 - Last period END date (YYYY-MM-DD) or type <b>skip</b>")
+    context.user_data["period_start"] = parsed
+    await _send(
+        update,
+        context,
+        _lt(context, "end"),
+        reply_markup=DATE_KB,
+    )
     return O_END
 
 async def o_end(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if _is_menu_press(update.message.text):
-        await _send(update, context, "Finish onboarding first 🙂\n\n4/6 - Last period END date (YYYY-MM-DD) or type <b>skip</b>")
+        await _send(update, context, _lt(context, "end"), reply_markup=DATE_KB)
         return O_END
     t = _norm(update.message.text).lower()
     if t == "skip":
         context.user_data["period_end"] = None
     else:
-        if not DATE_RE.match(t):
-            await _send(update, context, "Invalid date.\n\n4/6 - Last period END date (YYYY-MM-DD) or type <b>skip</b>")
+        parsed = _parse_flexible_date_input(t, tz_name=_default_tz(), allow_without_year=True)
+        if not parsed:
+            await _send(
+                update,
+                context,
+                "Invalid date.\n\nUse <b>8.4</b>, <b>08/04</b>, <b>2026-04-08</b>, or type <b>skip</b>.",
+                reply_markup=DATE_KB,
+            )
             return O_END
-        end = dt.date.fromisoformat(t)
+        end = dt.date.fromisoformat(parsed)
         start = dt.date.fromisoformat(context.user_data["period_start"])
         if end < start:
-            await _send(update, context, "End date can't be before start date.\n\n4/6 - Try again (YYYY-MM-DD)")
+            await _send(update, context, "End date can't be before start date.\n\n4/6 - Try again.", reply_markup=DATE_KB)
             return O_END
-        context.user_data["period_end"] = t
-    await _send(update, context, "5/6 - Cycle length in days (21-35). Example: 28")
+        context.user_data["period_end"] = parsed
+    await _send(update, context, _lt(context, "cycle"))
     return O_CYCLE
 
 async def o_cycle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if _is_menu_press(update.message.text):
-        await _send(update, context, "Finish onboarding first 🙂\n\n5/6 - Cycle length in days (21-35). Example: 28")
+        await _send(update, context, _lt(context, "cycle"))
         return O_CYCLE
     t = _norm(update.message.text)
     if not t.isdigit():
@@ -1167,21 +1394,30 @@ async def o_cycle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return O_CYCLE
     n = int(t)
     if n < 21 or n > 35:
-        await _send(update, context, "Enter a number 21-35.\n\n5/6 - Cycle length in days (21-35).")
+        await _send(update, context, _lt(context, "cycle"))
         return O_CYCLE
     context.user_data["cycle_length"] = n
-    await _send(update, context, "6/6 - Daily notification time (HH:MM). Example: 09:00")
+    await _send(
+        update,
+        context,
+        _lt(context, "time"),
+        reply_markup=TIME_KB,
+    )
     return O_TIME
 
 async def o_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if _is_menu_press(update.message.text):
-        await _send(update, context, "Finish onboarding first 🙂\n\n6/6 - Daily notification time (HH:MM). Example: 09:00")
+        await _send(update, context, _lt(context, "time"), reply_markup=TIME_KB)
         return O_TIME
-    t = _norm(update.message.text)
-    if not TIME_RE.match(t):
-        await _send(update, context, "Time format should be HH:MM (24h).\n\n6/6 - Daily notification time (HH:MM).")
+    t = _parse_notify_input(update.message.text or "")
+    if not t:
+        await _send(
+            update,
+            context,
+            "Time format should be <b>HH:MM</b> or choose a preset like <b>Morning</b> or <b>After work</b>.",
+            reply_markup=TIME_KB,
+        )
         return O_TIME
-    _parse_time_hhmm(t)
 
     chat_id = update.effective_chat.id
     profile = UserProfile(
@@ -1193,6 +1429,7 @@ async def o_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cycle_length=int(context.user_data["cycle_length"]),
         notify_time=t,
         tz=_default_tz(),
+        locale=context.user_data.get("locale", "en"),
         paused=False,
     )
 
@@ -1201,12 +1438,12 @@ async def o_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
 
     # ✅ Critical: show TODAY immediately with menu
-    await _send(update, context, "✅ Setup complete.\n\n" + await render_today(profile))
+    await _send(update, context, _lt(context, "setup_done") + "\n\n" + await render_today(profile))
     return ConversationHandler.END
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
-    await _send(update, context, "Onboarding cancelled.")
+    await _send(update, context, _lt(context, "cancelled"))
     return ConversationHandler.END
 
 # ----------------------------
@@ -1278,10 +1515,12 @@ async def cmd_set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not profile:
         return await start_onboarding(update, context)
     parts = (update.message.text or "").split()
-    if len(parts) != 2 or not TIME_RE.match(parts[1]):
-        return await _send(update, context, "Usage: /set_time HH:MM")
-    _parse_time_hhmm(parts[1])
-    profile.notify_time = parts[1]
+    if len(parts) < 2:
+        return await _send(update, context, "Usage: /set_time HH:MM\nExamples: /set_time 08:00, /set_time evening")
+    parsed = _parse_notify_input(" ".join(parts[1:]))
+    if not parsed:
+        return await _send(update, context, "Usage: /set_time HH:MM\nExamples: /set_time 08:00, /set_time evening")
+    profile.notify_time = parsed
     await db_upsert_user(profile)
     await _send(update, context, "✅ Updated.\n\n" + await render_today(profile))
 
@@ -1299,29 +1538,106 @@ async def cmd_set_cycle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await db_upsert_user(profile)
     await _send(update, context, "✅ Updated.\n\n" + await render_today(profile))
 
+
+async def cmd_set_lang(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    profile = await db_fetch_user(update.effective_chat.id)
+    if not profile:
+        return await start_onboarding(update, context)
+    parts = (update.message.text or "").split()
+    if len(parts) != 2 or parts[1].lower() not in {"en", "sv", "ru"}:
+        return await _send(update, context, "Usage: /set_lang en|sv|ru")
+    profile.locale = parts[1].lower()
+    await db_upsert_user(profile)
+    await _send(update, context, f"✅ Language updated to <b>{profile.locale}</b>.\n\n" + await render_settings(profile))
+
+
+async def _save_period_update(update: Update, context: ContextTypes.DEFAULT_TYPE, start_s: str, end_s: Optional[str]):
+    profile = await db_fetch_user(update.effective_chat.id)
+    if not profile:
+        return await start_onboarding(update, context)
+    profile.period_start = start_s
+    profile.period_end = end_s
+    await db_upsert_user(profile)
+    await db_log_period(profile.chat_id, start_s, end_s)
+    context.user_data.pop("period_update_start", None)
+    await _send(
+        update,
+        context,
+        "✅ Period updated and added to history.\n\n"
+        + await render_today(profile),
+    )
+    return ConversationHandler.END
+
+
 async def cmd_update_period(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profile = await db_fetch_user(update.effective_chat.id)
     if not profile:
         return await start_onboarding(update, context)
     parts = (update.message.text or "").split()
-    if len(parts) not in (2, 3):
-        return await _send(update, context, "Usage: /update_period START [END]")
-    start_s = parts[1]
-    end_s = parts[2] if len(parts) == 3 else None
+    if len(parts) in (2, 3):
+        start_s = _parse_flexible_date_input(parts[1], tz_name=profile.tz, allow_without_year=True)
+        end_s = _parse_flexible_date_input(parts[2], tz_name=profile.tz, allow_without_year=True) if len(parts) == 3 else None
+        if not start_s or (len(parts) == 3 and not end_s):
+            return await _send(update, context, "Dates can be short.\nExamples: /update_period 5.4 9.4 or /update_period 2026-04-05")
+        s = dt.date.fromisoformat(start_s)
+        if end_s:
+            e = dt.date.fromisoformat(end_s)
+            if e < s:
+                return await _send(update, context, "END cannot be before START.")
+        return await _save_period_update(update, context, start_s, end_s)
 
-    if not DATE_RE.match(start_s) or (end_s and not DATE_RE.match(end_s)):
-        return await _send(update, context, "Dates must be YYYY-MM-DD.")
-    s = dt.date.fromisoformat(start_s)
-    if end_s:
-        e = dt.date.fromisoformat(end_s)
-        if e < s:
-            return await _send(update, context, "END cannot be before START.")
+    await _send(
+        update,
+        context,
+        "Update period.\n\nStep 1/2 - Send the <b>start date</b>.\nExamples: <b>5.4</b>, <b>05/04</b>, <b>2026-04-05</b>, or use <b>📅 Today</b>/<b>📅 Yesterday</b>.",
+        reply_markup=DATE_KB,
+    )
+    return U_START
 
-    profile.period_start = start_s
-    profile.period_end = end_s
-    await db_upsert_user(profile)
-    await db_log_period(profile.chat_id, start_s, end_s)
-    await _send(update, context, "✅ Period updated.\n\n" + await render_today(profile))
+
+async def u_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    profile = await db_fetch_user(update.effective_chat.id)
+    if not profile:
+        return await start_onboarding(update, context)
+    t = _norm(update.message.text)
+    if _is_menu_press(t):
+        await _send(update, context, "Step 1/2 - Send the <b>start date</b>.", reply_markup=DATE_KB)
+        return U_START
+    parsed = _parse_flexible_date_input(t, tz_name=profile.tz, allow_without_year=True)
+    if not parsed:
+        await _send(update, context, "Invalid date.\n\nTry <b>5.4</b>, <b>05/04</b>, <b>2026-04-05</b>, or quick date buttons.", reply_markup=DATE_KB)
+        return U_START
+    context.user_data["period_update_start"] = parsed
+    await _send(
+        update,
+        context,
+        "Step 2/2 - Send the <b>end date</b>, or type <b>skip</b> if you only want to record the start.",
+        reply_markup=DATE_KB,
+    )
+    return U_END
+
+
+async def u_end(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    profile = await db_fetch_user(update.effective_chat.id)
+    if not profile:
+        return await start_onboarding(update, context)
+    start_s = context.user_data.get("period_update_start")
+    if not start_s:
+        return await start_onboarding(update, context)
+    t = _norm(update.message.text).lower()
+    if _is_menu_press(update.message.text):
+        await _send(update, context, "Step 2/2 - Send the <b>end date</b>, or type <b>skip</b>.", reply_markup=DATE_KB)
+        return U_END
+    if t == "skip":
+        return await _save_period_update(update, context, start_s, None)
+    end_s = _parse_flexible_date_input(t, tz_name=profile.tz, allow_without_year=True)
+    if not end_s:
+        await _send(update, context, "Invalid date.\n\nTry <b>9.4</b>, <b>09/04</b>, <b>2026-04-09</b>, or type <b>skip</b>.", reply_markup=DATE_KB)
+        return U_END
+    if dt.date.fromisoformat(end_s) < dt.date.fromisoformat(start_s):
+        await _send(update, context, "End date cannot be before start date. Try again or type <b>skip</b>.", reply_markup=DATE_KB)
+        return U_END
+    return await _save_period_update(update, context, start_s, end_s)
 
 
 async def _record_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE, helpful: bool):
@@ -1451,6 +1767,7 @@ def build_app() -> Application:
     conv = ConversationHandler(
         entry_points=[CommandHandler("start", cmd_start)],
         states={
+            O_LANG: [MessageHandler(filters.TEXT & ~filters.COMMAND, o_lang)],
             O_NICK: [MessageHandler(filters.TEXT & ~filters.COMMAND, o_nick)],
             O_DOB: [MessageHandler(filters.TEXT & ~filters.COMMAND, o_dob)],
             O_START: [MessageHandler(filters.TEXT & ~filters.COMMAND, o_start)],
@@ -1463,6 +1780,17 @@ def build_app() -> Application:
     )
     app.add_handler(conv)
 
+    period_conv = ConversationHandler(
+        entry_points=[CommandHandler("update_period", cmd_update_period)],
+        states={
+            U_START: [MessageHandler(filters.TEXT & ~filters.COMMAND, u_start)],
+            U_END: [MessageHandler(filters.TEXT & ~filters.COMMAND, u_end)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+        allow_reentry=True,
+    )
+    app.add_handler(period_conv)
+
     app.add_handler(CommandHandler("today", cmd_today))
     app.add_handler(CommandHandler("forecast", cmd_forecast))
     app.add_handler(CommandHandler("stats", cmd_stats))
@@ -1472,7 +1800,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("re_onboard", cmd_re_onboard))
     app.add_handler(CommandHandler("set_time", cmd_set_time))
     app.add_handler(CommandHandler("set_cycle", cmd_set_cycle))
-    app.add_handler(CommandHandler("update_period", cmd_update_period))
+    app.add_handler(CommandHandler("set_lang", cmd_set_lang))
     app.add_handler(CommandHandler("pause", cmd_pause))
     app.add_handler(CommandHandler("resume", cmd_resume))
     app.add_handler(CommandHandler("helpful", cmd_helpful))

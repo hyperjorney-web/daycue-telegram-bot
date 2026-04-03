@@ -552,12 +552,10 @@ UI_TEXT = {
         "next_shift": "Next shift",
         "no_next_shift": "No phase switch left in this cycle.",
         "phase_description": "Phase description",
-        "zodiac_tone": "Personal tone",
-        "numerology_tone": "Communication style",
-        "why_this_fits": "Why this fits her",
-        "why_phase": "Today the body likely needs",
-        "why_zodiac": "Her usual tone tends to respond to",
-        "why_numerology": "Communication tends to land best when it feels",
+        "why_this_fits": "Why this tone today",
+        "why_phase": "Today support is better when it feels",
+        "why_zodiac": "It will likely land better if the tone stays",
+        "why_numerology": "The wording works better when it feels",
         "quick_signal_check": "Quick signal check",
         "recent_period_history": "Recent period history",
         "no_history": "• No period history yet.",
@@ -676,12 +674,10 @@ UI_TEXT = {
         "next_shift": "Nasta skifte",
         "no_next_shift": "Ingen fasvaxling kvar i den har cykeln.",
         "phase_description": "Fasbeskrivning",
-        "zodiac_tone": "Personlig ton",
-        "numerology_tone": "Kommunikationsstil",
-        "why_this_fits": "Varfor detta passar henne",
-        "why_phase": "Kroppen verkar idag behova",
-        "why_zodiac": "Hennes vanliga ton svarar oftast bast pa",
-        "why_numerology": "Kommunikationen landar oftast bast nar den kanns",
+        "why_this_fits": "Varfor tonen ser ut sa idag",
+        "why_phase": "Stodet fungerar battre idag nar det kanns",
+        "why_zodiac": "Det landar troligen battre om tonen ar",
+        "why_numerology": "Formuleringen fungerar battre nar den kanns",
         "quick_signal_check": "Snabb signalcheck",
         "recent_period_history": "Senaste periodhistorik",
         "no_history": "• Ingen historik an.",
@@ -800,12 +796,10 @@ UI_TEXT = {
         "next_shift": "Следующий переход",
         "no_next_shift": "В этом цикле больше не будет смены фазы.",
         "phase_description": "Описание фазы",
-        "zodiac_tone": "Персональный тон",
-        "numerology_tone": "Стиль коммуникации",
-        "why_this_fits": "Почему это подходит ей",
-        "why_phase": "Сегодня телу, скорее всего, нужно",
-        "why_zodiac": "Обычно ее тон лучше откликается на",
-        "why_numerology": "Коммуникация обычно лучше ложится, когда она ощущается",
+        "why_this_fits": "Почему такой тон сегодня",
+        "why_phase": "Сегодня поддержка лучше работает, когда она ощущается",
+        "why_zodiac": "Вероятнее всего лучше зайдет тон, который остается",
+        "why_numerology": "Формулировка лучше ложится, когда она ощущается",
         "quick_signal_check": "Быстрый срез",
         "recent_period_history": "Последняя история цикла",
         "no_history": "• Истории пока нет.",
@@ -1877,20 +1871,16 @@ async def render_today(profile: UserProfile) -> str:
         numerology,
     )
     support = _extra_support_lines(phase, now_stats, hormones, day, locale)
-    if zodiac:
-        support["relationship"] = f"{support['relationship']} {_ui(locale, 'zodiac_tone')}: {zodiac['tone']}"
-    if numerology:
-        support["regulate"] = f"{support['regulate']} {_ui(locale, 'numerology_tone')}: {numerology['tone']}"
     why_lines = [
-        f"• {_ui(locale, 'why_phase')} <b>{_phase_name(phase, locale).lower()}</b> rhythm: {_phase_summary_text(phase, now_stats, locale).lower()}",
+        f"• {_ui(locale, 'why_phase')} {_phase_summary_text(phase, now_stats, locale).lower()}",
     ]
     if zodiac:
         why_lines.append(
-            f"• {_ui(locale, 'why_zodiac')} <b>{zodiac['label']}</b>: {zodiac['tone'].rstrip('.')}"
+            f"• {_ui(locale, 'why_zodiac')} {zodiac['tone'].rstrip('.').lower()}"
         )
     if numerology:
         why_lines.append(
-            f"• {_ui(locale, 'why_numerology')} <b>{numerology['label']}</b>: {numerology['tone'].rstrip('.')}"
+            f"• {_ui(locale, 'why_numerology')} {numerology['tone'].rstrip('.').lower()}"
         )
     why_block = f"<b>{_ui(locale, 'why_this_fits')}</b>\n" + "\n".join(why_lines) + "\n\n"
 
@@ -1951,8 +1941,6 @@ async def render_settings(profile: UserProfile) -> str:
     phase = snap["phase"]
     day = snap["day"]
     stats = snap["stats"]
-    zodiac = _zodiac_overlay(profile, locale)
-    numerology = _numerology_overlay(profile, locale)
     desc = await copy_get(f"phase_desc_{phase}", locale=locale, phase=phase)
     history = await db_fetch_period_history(profile.chat_id, 3)
 
@@ -1972,8 +1960,6 @@ async def render_settings(profile: UserProfile) -> str:
         f"<b>{_ui(locale, 'settings')}</b>\n\n"
         f"<b>{_ui(locale, 'partner')}</b>\n"
         f"{_ui(locale, 'name')}: <b>{profile.partner_name}</b>\n"
-        f"{_ui(locale, 'sun_sign')}: <b>{zodiac['label'] if zodiac else _ui(locale, 'unknown')}</b>\n"
-        f"{_ui(locale, 'life_path')}: <b>{numerology['label'] if numerology else _ui(locale, 'unknown')}</b>\n"
         f"{_ui(locale, 'language')}: <b>{profile.locale}</b>\n"
         f"{_ui(locale, 'paused')}: <b>{_ui(locale, 'yes') if profile.paused else _ui(locale, 'no')}</b>\n"
         f"{_ui(locale, 'notify')}: <b>{profile.notify_time}</b> ({profile.tz})\n\n"

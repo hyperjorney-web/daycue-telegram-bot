@@ -44,6 +44,7 @@ BTN_FORECAST = "🔮 Forecast"
 BTN_STATS = "📊 Stats"
 BTN_INSIGHTS = "🧾 Insights"
 BTN_SETTINGS = "⚙️ Settings"
+BTN_LANGUAGE = "🌐 Language"
 BTN_ABOUT = "📚 About phase"
 BTN_HELPFUL = "👍 Helpful"
 BTN_NOT_HELPFUL = "👎 Not helpful"
@@ -54,13 +55,14 @@ MENU_TEXTS = {
     BTN_STATS,
     BTN_INSIGHTS,
     BTN_SETTINGS,
+    BTN_LANGUAGE,
     BTN_ABOUT,
     BTN_HELPFUL,
     BTN_NOT_HELPFUL,
 }
 
 MENU_KB = ReplyKeyboardMarkup(
-    [[BTN_TODAY, BTN_FORECAST], [BTN_STATS, BTN_INSIGHTS], [BTN_SETTINGS, BTN_ABOUT], [BTN_HELPFUL, BTN_NOT_HELPFUL]],
+    [[BTN_TODAY, BTN_FORECAST], [BTN_STATS, BTN_INSIGHTS], [BTN_SETTINGS, BTN_LANGUAGE], [BTN_ABOUT, BTN_HELPFUL], [BTN_NOT_HELPFUL]],
     resize_keyboard=True,
     one_time_keyboard=False,
     input_field_placeholder="Choose…",
@@ -84,7 +86,7 @@ LANG_RU = "🇷🇺 Русский"
 LANG_MAP = {LANG_EN: "en", LANG_SV: "sv", LANG_RU: "ru"}
 
 LANG_KB = ReplyKeyboardMarkup(
-    [[LANG_EN, LANG_SV], [LANG_RU]],
+    [[LANG_EN, LANG_SV], [LANG_RU, BTN_SETTINGS]],
     resize_keyboard=True,
     one_time_keyboard=False,
     input_field_placeholder="Language",
@@ -1115,7 +1117,7 @@ async def render_settings(profile: UserProfile) -> str:
         f"• /update_period\n"
         f"• /set_time HH:MM\n"
         f"• /set_cycle 21-35\n"
-        f"• /set_lang en|sv|ru\n"
+        f"• {BTN_LANGUAGE} or /set_lang\n"
         f"• /pause or /resume\n"
         f"• /re_onboard"
     )
@@ -1545,11 +1547,39 @@ async def cmd_set_lang(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not profile:
         return await start_onboarding(update, context)
     parts = (update.message.text or "").split()
+    if len(parts) == 1:
+        context.user_data["awaiting_lang_select"] = True
+        return await _send(update, context, "Choose a language.", reply_markup=LANG_KB)
     if len(parts) != 2 or parts[1].lower() not in {"en", "sv", "ru"}:
-        return await _send(update, context, "Usage: /set_lang en|sv|ru")
+        return await _send(update, context, "Usage: /set_lang en|sv|ru", reply_markup=LANG_KB)
     profile.locale = parts[1].lower()
     await db_upsert_user(profile)
+    context.user_data["awaiting_lang_select"] = False
     await _send(update, context, f"✅ Language updated to <b>{profile.locale}</b>.\n\n" + await render_settings(profile))
+
+
+async def choose_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    profile = await db_fetch_user(update.effective_chat.id)
+    if not profile:
+        return await start_onboarding(update, context)
+    context.user_data["awaiting_lang_select"] = True
+    await _send(update, context, "Choose a language.", reply_markup=LANG_KB)
+
+
+async def apply_language_choice(update: Update, context: ContextTypes.DEFAULT_TYPE, locale: str):
+    profile = await db_fetch_user(update.effective_chat.id)
+    if not profile:
+        return await start_onboarding(update, context)
+    profile.locale = locale
+    await db_upsert_user(profile)
+    context.user_data["locale"] = locale
+    context.user_data["awaiting_lang_select"] = False
+    await _send(
+        update,
+        context,
+        f"✅ Language updated to <b>{locale}</b>.\n\n" + await render_settings(profile),
+        reply_markup=MENU_KB,
+    )
 
 
 async def _save_period_update(update: Update, context: ContextTypes.DEFAULT_TYPE, start_s: str, end_s: Optional[str]):
@@ -1678,6 +1708,8 @@ async def cmd_not_helpful(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def on_menu_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     t = _norm(update.message.text)
+    if t in LANG_MAP:
+        return await apply_language_choice(update, context, LANG_MAP[t])
     if t == BTN_TODAY:
         return await cmd_today(update, context)
     if t == BTN_FORECAST:
@@ -1688,6 +1720,8 @@ async def on_menu_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await cmd_insights(update, context)
     if t == BTN_SETTINGS:
         return await cmd_settings(update, context)
+    if t == BTN_LANGUAGE:
+        return await choose_language(update, context)
     if t == BTN_ABOUT:
         return await cmd_about(update, context)
     if t == BTN_HELPFUL:

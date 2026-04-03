@@ -49,24 +49,63 @@ BTN_ABOUT = "📚 About phase"
 BTN_HELPFUL = "👍 Helpful"
 BTN_NOT_HELPFUL = "👎 Not helpful"
 
-MENU_TEXTS = {
-    BTN_TODAY,
-    BTN_FORECAST,
-    BTN_STATS,
-    BTN_INSIGHTS,
-    BTN_SETTINGS,
-    BTN_LANGUAGE,
-    BTN_ABOUT,
-    BTN_HELPFUL,
-    BTN_NOT_HELPFUL,
+BUTTON_TEXT = {
+    "en": {
+        BTN_TODAY: "📍 Today",
+        BTN_FORECAST: "🔮 Forecast",
+        BTN_STATS: "📊 Stats",
+        BTN_INSIGHTS: "🧾 Insights",
+        BTN_SETTINGS: "⚙️ Settings",
+        BTN_LANGUAGE: "🌐 Language",
+        BTN_ABOUT: "📚 About phase",
+        BTN_HELPFUL: "👍 Helpful",
+        BTN_NOT_HELPFUL: "👎 Not helpful",
+    },
+    "sv": {
+        BTN_TODAY: "📍 Idag",
+        BTN_FORECAST: "🔮 Prognos",
+        BTN_STATS: "📊 Statistik",
+        BTN_INSIGHTS: "🧾 Insikter",
+        BTN_SETTINGS: "⚙️ Installningar",
+        BTN_LANGUAGE: "🌐 Sprak",
+        BTN_ABOUT: "📚 Om fasen",
+        BTN_HELPFUL: "👍 Hjalpsamt",
+        BTN_NOT_HELPFUL: "👎 Inte hjalpsamt",
+    },
+    "ru": {
+        BTN_TODAY: "📍 Сегодня",
+        BTN_FORECAST: "🔮 Прогноз",
+        BTN_STATS: "📊 Статы",
+        BTN_INSIGHTS: "🧾 Инсайты",
+        BTN_SETTINGS: "⚙️ Настройки",
+        BTN_LANGUAGE: "🌐 Язык",
+        BTN_ABOUT: "📚 О фазе",
+        BTN_HELPFUL: "👍 Полезно",
+        BTN_NOT_HELPFUL: "👎 Не полезно",
+    },
 }
 
-MENU_KB = ReplyKeyboardMarkup(
-    [[BTN_TODAY, BTN_FORECAST], [BTN_STATS, BTN_INSIGHTS], [BTN_SETTINGS, BTN_LANGUAGE], [BTN_ABOUT, BTN_HELPFUL], [BTN_NOT_HELPFUL]],
-    resize_keyboard=True,
-    one_time_keyboard=False,
-    input_field_placeholder="Choose…",
-)
+
+def _btn(locale: str, key: str) -> str:
+    return BUTTON_TEXT.get(locale, BUTTON_TEXT["en"]).get(key, BUTTON_TEXT["en"].get(key, key))
+
+
+def _menu_kb(locale: str) -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        [
+            [_btn(locale, BTN_TODAY), _btn(locale, BTN_FORECAST)],
+            [_btn(locale, BTN_STATS), _btn(locale, BTN_INSIGHTS)],
+            [_btn(locale, BTN_SETTINGS), _btn(locale, BTN_LANGUAGE)],
+            [_btn(locale, BTN_ABOUT), _btn(locale, BTN_HELPFUL)],
+            [_btn(locale, BTN_NOT_HELPFUL)],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+        input_field_placeholder="Choose…",
+    )
+
+
+MENU_TEXTS = {label for labels in BUTTON_TEXT.values() for label in labels.values()}
 
 # ----------------------------
 # Data model
@@ -86,25 +125,48 @@ LANG_RU = "🇷🇺 Русский"
 LANG_MAP = {LANG_EN: "en", LANG_SV: "sv", LANG_RU: "ru"}
 
 LANG_KB = ReplyKeyboardMarkup(
-    [[LANG_EN, LANG_SV], [LANG_RU, BTN_SETTINGS]],
+    [[LANG_EN, LANG_SV], [LANG_RU]],
     resize_keyboard=True,
     one_time_keyboard=False,
     input_field_placeholder="Language",
 )
 
-DATE_KB = ReplyKeyboardMarkup(
-    [[DATE_TODAY, DATE_YESTERDAY], [BTN_TODAY, BTN_SETTINGS]],
-    resize_keyboard=True,
-    one_time_keyboard=False,
-    input_field_placeholder="Date",
-)
+DATE_TEXT = {
+    "en": {DATE_TODAY: "📅 Today", DATE_YESTERDAY: "📅 Yesterday"},
+    "sv": {DATE_TODAY: "📅 Idag", DATE_YESTERDAY: "📅 Igar"},
+    "ru": {DATE_TODAY: "📅 Сегодня", DATE_YESTERDAY: "📅 Вчера"},
+}
 
-TIME_KB = ReplyKeyboardMarkup(
-    [[TIME_MORNING, TIME_AFTER_WORK], [TIME_EVENING, BTN_SETTINGS]],
-    resize_keyboard=True,
-    one_time_keyboard=False,
-    input_field_placeholder="Time",
-)
+TIME_TEXT = {
+    "en": {TIME_MORNING: "🌅 Morning (08:00)", TIME_AFTER_WORK: "💼 After work (18:00)", TIME_EVENING: "🌙 Evening (21:00)"},
+    "sv": {TIME_MORNING: "🌅 Morgon (08:00)", TIME_AFTER_WORK: "💼 Efter jobbet (18:00)", TIME_EVENING: "🌙 Kvall (21:00)"},
+    "ru": {TIME_MORNING: "🌅 Утро (08:00)", TIME_AFTER_WORK: "💼 После работы (18:00)", TIME_EVENING: "🌙 Вечер (21:00)"},
+}
+
+
+def _date_btn(locale: str, key: str) -> str:
+    return DATE_TEXT.get(locale, DATE_TEXT["en"]).get(key, DATE_TEXT["en"][key])
+
+
+def _time_btn(locale: str, key: str) -> str:
+    return TIME_TEXT.get(locale, TIME_TEXT["en"]).get(key, TIME_TEXT["en"][key])
+
+def _date_kb(locale: str) -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        [[_date_btn(locale, DATE_TODAY), _date_btn(locale, DATE_YESTERDAY)], [_btn(locale, BTN_TODAY), _btn(locale, BTN_SETTINGS)]],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+        input_field_placeholder="Date",
+    )
+
+
+def _time_kb(locale: str) -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        [[_time_btn(locale, TIME_MORNING), _time_btn(locale, TIME_AFTER_WORK)], [_time_btn(locale, TIME_EVENING), _btn(locale, BTN_SETTINGS)]],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+        input_field_placeholder="Time",
+    )
 
 @dataclass
 class UserProfile:
@@ -434,6 +496,217 @@ LANG_TEXT = {
     },
 }
 
+UI_TEXT = {
+    "en": {
+        "settings": "Settings",
+        "partner": "Partner",
+        "name": "Name",
+        "language": "Language",
+        "paused": "Paused",
+        "yes": "yes",
+        "no": "no",
+        "notify": "Notify",
+        "cycle": "Cycle",
+        "today_day": "Today",
+        "phase": "Phase",
+        "last_period": "Last period",
+        "estimated_period_length": "Estimated period length",
+        "next_shift": "Next shift",
+        "no_next_shift": "No phase switch left in this cycle.",
+        "phase_description": "Phase description",
+        "quick_signal_check": "Quick signal check",
+        "recent_period_history": "Recent period history",
+        "no_history": "• No period history yet.",
+        "settings_stats_hint": "Open <b>{stats}</b> or use <b>/stats</b> for the full stat breakdown, cycle path, and hormone picture.",
+        "commands": "Commands",
+        "today_for": "Today for {name}",
+        "todays_cue": "Today's cue",
+        "try_saying": "Try saying",
+        "avoid": "Avoid",
+        "more_help": "More help",
+        "body": "Body",
+        "relationship": "Relationship",
+        "regulation": "Regulation",
+        "signals_today": "Signals today",
+        "more_detail": "More detail",
+        "estimated_hormone_picture": "Estimated hormone picture",
+        "feedback": "Feedback",
+        "feedback_hint": "Tap <b>{helpful}</b> or <b>{not_helpful}</b> so Daycue can learn which cues actually help.",
+        "today_stats_hint": "Use <b>/stats</b> or the <b>{stats}</b> button for the full cycle view.",
+        "stats_title": "Partner stats for today",
+        "cycle_path": "Cycle path",
+        "current_dimensions": "Current dimensions",
+        "trend_window": "Trend window",
+        "how_to_read_this": "How to read this",
+        "stats_explainer": "These are estimated support signals, not medical measurements. They help the bot shape the tone, pressure level, and type of care for today.",
+        "stats_hint": "Use <b>{today}</b> for the daily cue and <b>{about}</b> for the current phase explanation.",
+        "insights": "Insights",
+        "no_feedback_for": "No feedback yet for {name}.",
+        "insights_train_hint": "Use <b>{helpful}</b> or <b>{not_helpful}</b> after daily cues to start training the model.",
+        "last_days": "Last {days} days",
+        "responses": "Responses",
+        "helpful_count": "Helpful",
+        "avg_energy": "Avg energy on rated days",
+        "avg_irritability": "Avg irritability on rated days",
+        "avg_connection": "Avg connection on rated days",
+        "by_phase": "By phase",
+        "recent_feedback": "Recent feedback",
+        "what_works_best": "What usually works best",
+        "forecast_title": "Next {days} days for {name}",
+        "important_shifts": "Important shifts",
+        "no_phase_switch": "• No phase switch within this window.",
+        "fertility_window": "Fertility window",
+        "no_fertility_window": "• No high-fertility day inside this forecast window.",
+        "switches_to": "switches to",
+        "cue": "Cue",
+        "energy": "Energy",
+        "irritability": "Irritability",
+        "connection": "Connection",
+        "fertility": "Fertility",
+        "day_marker": "Today marker: <b>day {day}/{cycle_len}</b>",
+        "language_updated": "✅ Language updated to <b>{locale}</b>.",
+    },
+    "sv": {
+        "settings": "Installningar",
+        "partner": "Partner",
+        "name": "Namn",
+        "language": "Sprak",
+        "paused": "Pausad",
+        "yes": "ja",
+        "no": "nej",
+        "notify": "Notis",
+        "cycle": "Cykel",
+        "today_day": "Idag",
+        "phase": "Fas",
+        "last_period": "Senaste mens",
+        "estimated_period_length": "Beraknad menslangd",
+        "next_shift": "Nasta skifte",
+        "no_next_shift": "Ingen fasvaxling kvar i den har cykeln.",
+        "phase_description": "Fasbeskrivning",
+        "quick_signal_check": "Snabb signalcheck",
+        "recent_period_history": "Senaste periodhistorik",
+        "no_history": "• Ingen historik an.",
+        "settings_stats_hint": "Oppna <b>{stats}</b> eller anvand <b>/stats</b> for full statistik, cykelvag och hormonbild.",
+        "commands": "Kommandon",
+        "today_for": "Idag for {name}",
+        "todays_cue": "Dagens cue",
+        "try_saying": "Prova att saga",
+        "avoid": "Undvik",
+        "more_help": "Mer hjalp",
+        "body": "Kropp",
+        "relationship": "Relation",
+        "regulation": "Reglering",
+        "signals_today": "Signaler idag",
+        "more_detail": "Mer detalj",
+        "estimated_hormone_picture": "Uppskattad hormonbild",
+        "feedback": "Feedback",
+        "feedback_hint": "Tryck <b>{helpful}</b> eller <b>{not_helpful}</b> sa Daycue kan lara sig vilka cues som faktiskt hjalper.",
+        "today_stats_hint": "Anvand <b>/stats</b> eller knappen <b>{stats}</b> for full cykelvy.",
+        "stats_title": "Partnerstatistik idag",
+        "cycle_path": "Cykelvag",
+        "current_dimensions": "Nuvarande dimensioner",
+        "trend_window": "Trendfonster",
+        "how_to_read_this": "Sa lases detta",
+        "stats_explainer": "Detta ar uppskattade stodsignaler, inte medicinska matningar. De hjalper boten att forma ton, tryckniva och typ av omtanke for idag.",
+        "stats_hint": "Anvand <b>{today}</b> for dagens cue och <b>{about}</b> for forklaring av aktuell fas.",
+        "insights": "Insikter",
+        "no_feedback_for": "Ingen feedback an for {name}.",
+        "insights_train_hint": "Anvand <b>{helpful}</b> eller <b>{not_helpful}</b> efter dagliga cues for att borja trana modellen.",
+        "last_days": "Senaste {days} dagarna",
+        "responses": "Svar",
+        "helpful_count": "Hjalpsamt",
+        "avg_energy": "Snittenergi pa bedomda dagar",
+        "avg_irritability": "Snittirritation pa bedomda dagar",
+        "avg_connection": "Snittkontakt pa bedomda dagar",
+        "by_phase": "Per fas",
+        "recent_feedback": "Senaste feedback",
+        "what_works_best": "Det som oftast fungerar bast",
+        "forecast_title": "Nasta {days} dagar for {name}",
+        "important_shifts": "Viktiga skiften",
+        "no_phase_switch": "• Ingen fasvaxling inom detta fonster.",
+        "fertility_window": "Fertilitetsfonster",
+        "no_fertility_window": "• Ingen dag med hog fertilitet i prognosen.",
+        "switches_to": "byter till",
+        "cue": "Cue",
+        "energy": "Energi",
+        "irritability": "Irritation",
+        "connection": "Kontakt",
+        "fertility": "Fertilitet",
+        "day_marker": "Markor idag: <b>dag {day}/{cycle_len}</b>",
+        "language_updated": "✅ Spraket uppdaterades till <b>{locale}</b>.",
+    },
+    "ru": {
+        "settings": "Настройки",
+        "partner": "Партнер",
+        "name": "Имя",
+        "language": "Язык",
+        "paused": "Пауза",
+        "yes": "да",
+        "no": "нет",
+        "notify": "Уведомление",
+        "cycle": "Цикл",
+        "today_day": "Сегодня",
+        "phase": "Фаза",
+        "last_period": "Последние месячные",
+        "estimated_period_length": "Примерная длина менструации",
+        "next_shift": "Следующий переход",
+        "no_next_shift": "В этом цикле больше не будет смены фазы.",
+        "phase_description": "Описание фазы",
+        "quick_signal_check": "Быстрый срез",
+        "recent_period_history": "Последняя история цикла",
+        "no_history": "• Истории пока нет.",
+        "settings_stats_hint": "Открой <b>{stats}</b> или используй <b>/stats</b> для полного разбора статов, пути цикла и гормональной картины.",
+        "commands": "Команды",
+        "today_for": "Сегодня для {name}",
+        "todays_cue": "Совет дня",
+        "try_saying": "Можно сказать",
+        "avoid": "Избегай",
+        "more_help": "Дополнительно",
+        "body": "Тело",
+        "relationship": "Отношения",
+        "regulation": "Регуляция",
+        "signals_today": "Сигналы на сегодня",
+        "more_detail": "Детальнее",
+        "estimated_hormone_picture": "Примерная гормональная картина",
+        "feedback": "Фидбек",
+        "feedback_hint": "Нажми <b>{helpful}</b> или <b>{not_helpful}</b>, чтобы Daycue понял, какие советы реально помогают.",
+        "today_stats_hint": "Используй <b>/stats</b> или кнопку <b>{stats}</b> для полного вида цикла.",
+        "stats_title": "Статы партнера на сегодня",
+        "cycle_path": "Путь цикла",
+        "current_dimensions": "Текущие параметры",
+        "trend_window": "Окно тренда",
+        "how_to_read_this": "Как это читать",
+        "stats_explainer": "Это оценочные сигналы поддержки, а не медицинские измерения. Они помогают боту подбирать тон, уровень давления и тип заботы на сегодня.",
+        "stats_hint": "Используй <b>{today}</b> для ежедневного совета и <b>{about}</b> для описания текущей фазы.",
+        "insights": "Инсайты",
+        "no_feedback_for": "Пока нет фидбека для {name}.",
+        "insights_train_hint": "Используй <b>{helpful}</b> или <b>{not_helpful}</b> после ежедневных советов, чтобы начать обучать модель.",
+        "last_days": "Последние {days} дней",
+        "responses": "Ответы",
+        "helpful_count": "Полезно",
+        "avg_energy": "Средняя энергия в оцененные дни",
+        "avg_irritability": "Средняя раздражительность в оцененные дни",
+        "avg_connection": "Средняя открытость к контакту",
+        "by_phase": "По фазам",
+        "recent_feedback": "Последний фидбек",
+        "what_works_best": "Что обычно работает лучше",
+        "forecast_title": "Следующие {days} дней для {name}",
+        "important_shifts": "Важные переходы",
+        "no_phase_switch": "• В этом окне нет смены фазы.",
+        "fertility_window": "Окно фертильности",
+        "no_fertility_window": "• В этом прогнозе нет дней с высокой фертильностью.",
+        "switches_to": "переход в",
+        "cue": "Совет",
+        "energy": "Энергия",
+        "irritability": "Раздражительность",
+        "connection": "Контакт",
+        "fertility": "Фертильность",
+        "day_marker": "Маркер сегодня: <b>день {day}/{cycle_len}</b>",
+        "language_updated": "✅ Язык обновлен на <b>{locale}</b>.",
+    },
+}
+
+
 
 def _lang(context: ContextTypes.DEFAULT_TYPE) -> str:
     return context.user_data.get("locale", "en")
@@ -442,6 +715,24 @@ def _lang(context: ContextTypes.DEFAULT_TYPE) -> str:
 def _lt(context: ContextTypes.DEFAULT_TYPE, key: str) -> str:
     locale = _lang(context)
     return LANG_TEXT.get(locale, LANG_TEXT["en"]).get(key, LANG_TEXT["en"][key])
+
+
+def _ui(locale: str, key: str, **kwargs) -> str:
+    text = UI_TEXT.get(locale, UI_TEXT["en"]).get(key, UI_TEXT["en"].get(key, key))
+    return text.format(**kwargs) if kwargs else text
+
+
+def _sync_locale(context: ContextTypes.DEFAULT_TYPE, profile: UserProfile):
+    context.user_data["locale"] = profile.locale or "en"
+
+
+def _button_key(text: str) -> Optional[str]:
+    normalized = _norm(text)
+    for labels in BUTTON_TEXT.values():
+        for key, label in labels.items():
+            if normalized == label:
+                return key
+    return None
 
 async def copy_get(key: str, locale: str = "en", phase: Optional[str] = None) -> str:
     now = asyncio.get_running_loop().time()
@@ -495,14 +786,19 @@ def _parse_time_hhmm(s: str) -> dt.time:
 
 def _parse_notify_input(s: str) -> Optional[str]:
     text = _norm(s)
-    preset_map = {
-        TIME_MORNING: "08:00",
-        TIME_AFTER_WORK: "18:00",
-        TIME_EVENING: "21:00",
-        "morning": "08:00",
-        "after work": "18:00",
-        "evening": "21:00",
-    }
+    preset_map = {"morning": "08:00", "after work": "18:00", "evening": "21:00"}
+    for labels in TIME_TEXT.values():
+        preset_map[labels[TIME_MORNING]] = "08:00"
+        preset_map[labels[TIME_AFTER_WORK]] = "18:00"
+        preset_map[labels[TIME_EVENING]] = "21:00"
+    preset_map.update({
+        "morgon": "08:00",
+        "efter jobbet": "18:00",
+        "kvall": "21:00",
+        "утро": "08:00",
+        "после работы": "18:00",
+        "вечер": "21:00",
+    })
     lowered = text.lower()
     if lowered in preset_map:
         return preset_map[lowered]
@@ -518,9 +814,11 @@ def _parse_flexible_date_input(s: str, *, tz_name: str, allow_without_year: bool
     text = _norm(s).lower()
     today = _today_in_tz(tz_name)
 
-    if text in {"today", DATE_TODAY.lower()}:
+    all_today = {"today", "idag", "сегодня"} | {v[DATE_TODAY].lower() for v in DATE_TEXT.values()}
+    all_yesterday = {"yesterday", "igar", "вчера"} | {v[DATE_YESTERDAY].lower() for v in DATE_TEXT.values()}
+    if text in all_today:
         return today.isoformat()
-    if text in {"yesterday", DATE_YESTERDAY.lower()}:
+    if text in all_yesterday:
         return (today - dt.timedelta(days=1)).isoformat()
 
     if DATE_RE.match(text):
@@ -584,6 +882,26 @@ def _phase_for_cycle_day(day: int, bounds: Dict[str, Tuple[int,int]]) -> str:
 PHASE_NAME = {"menstrual": "Menstrual", "follicular": "Follicular", "ovulatory": "Ovulatory", "luteal": "Luteal"}
 PHASE_EMOJI = {"menstrual": "🩸", "follicular": "🌱", "ovulatory": "🔥", "luteal": "🌙"}
 PHASE_ORDER = ["menstrual", "follicular", "ovulatory", "luteal"]
+
+PHASE_NAME_I18N = {
+    "en": PHASE_NAME,
+    "sv": {"menstrual": "Menstruell", "follicular": "Follikular", "ovulatory": "Ovulatorisk", "luteal": "Luteal"},
+    "ru": {"menstrual": "Менструальная", "follicular": "Фолликулярная", "ovulatory": "Овуляторная", "luteal": "Лютеиновая"},
+}
+
+FERTILITY_I18N = {
+    "en": {"low": "low", "elevated": "elevated", "high": "high", "peak": "peak"},
+    "sv": {"low": "lag", "elevated": "forhojd", "high": "hog", "peak": "topp"},
+    "ru": {"low": "низкая", "elevated": "повышенная", "high": "высокая", "peak": "пик"},
+}
+
+
+def _phase_name(phase: str, locale: str) -> str:
+    return PHASE_NAME_I18N.get(locale, PHASE_NAME_I18N["en"]).get(phase, PHASE_NAME.get(phase, phase))
+
+
+def _fertility_text(level: str, locale: str) -> str:
+    return FERTILITY_I18N.get(locale, FERTILITY_I18N["en"]).get(level, level)
 
 def _arrow(cur: int, prev: int) -> str:
     if cur > prev: return "↗"
@@ -757,7 +1075,7 @@ def _cycle_path(day: int, bounds: Dict[str, Tuple[int, int]], cycle_len: int) ->
             continue
         marker = "●" if start <= day <= end else "○"
         parts.append(f"{marker}{_phase_segment_label(phase, start, end)}")
-    return " → ".join(parts) + f"\nToday marker: <b>day {day}/{cycle_len}</b>"
+    return " → ".join(parts)
 
 
 def _phase_window_values(
@@ -1007,6 +1325,7 @@ def _feedback_ack(helpful: bool, phase: str, stats: Dict[str, int]) -> str:
 # Rendering
 # ----------------------------
 async def render_today(profile: UserProfile) -> str:
+    locale = profile.locale or "en"
     snap = _cycle_snapshot(profile)
     today = snap["today"]
     bounds = snap["bounds"]
@@ -1029,101 +1348,103 @@ async def render_today(profile: UserProfile) -> str:
     if snap["next_change"] and snap["next_phase"] and snap["next_phase"] != phase:
         change_txt = (
             f"\n\n⏭ Next shift: <b>{snap['next_change'].isoformat()}</b> → "
-            f"{PHASE_NAME[snap['next_phase']]} {PHASE_EMOJI[snap['next_phase']]}"
+            f"{_phase_name(snap['next_phase'], locale)} {PHASE_EMOJI[snap['next_phase']]}"
         )
 
     return (
-        f"<b>Today for {profile.partner_name}</b>\n"
-        f"Day <b>{day}/{profile.cycle_length}</b> · <b>{PHASE_NAME[phase]}</b> {PHASE_EMOJI[phase]}\n"
+        f"<b>{_ui(locale, 'today_for', name=profile.partner_name)}</b>\n"
+        f"Day <b>{day}/{profile.cycle_length}</b> · <b>{_phase_name(phase, locale)}</b> {PHASE_EMOJI[phase]}\n"
         f"{_phase_summary_text(phase, now_stats)}\n\n"
-        f"<b>Today’s cue</b>\n"
+        f"<b>{_ui(locale, 'todays_cue')}</b>\n"
         f"<b>{cue['headline']}</b>\n"
         f"{cue['do']}\n\n"
-        f"<b>Try saying</b>\n"
+        f"<b>{_ui(locale, 'try_saying')}</b>\n"
         f"“{cue['say']}”\n\n"
-        f"<b>Avoid</b>\n"
+        f"<b>{_ui(locale, 'avoid')}</b>\n"
         f"{cue['avoid']}\n\n"
-        f"<b>More help</b>\n"
-        f"• Body: {support['body']}\n"
-        f"• Relationship: {support['relationship']}\n"
-        f"• Regulation: {support['regulate']}\n\n"
-        f"<b>Signals today</b>\n"
-        f"⚡ Energy: <b>{_level_word(now_stats['energy'])}</b> {_bar(now_stats['energy'])}\n"
+        f"<b>{_ui(locale, 'more_help')}</b>\n"
+        f"• {_ui(locale, 'body')}: {support['body']}\n"
+        f"• {_ui(locale, 'relationship')}: {support['relationship']}\n"
+        f"• {_ui(locale, 'regulation')}: {support['regulate']}\n\n"
+        f"<b>{_ui(locale, 'signals_today')}</b>\n"
+        f"⚡ {_ui(locale, 'energy')}: <b>{_level_word(now_stats['energy'])}</b> {_bar(now_stats['energy'])}\n"
         f"🎭 Mood: <b>{_level_word(now_stats['mood'])}</b> {_bar(now_stats['mood'])}\n"
-        f"💢 Irritability: <b>{_level_word(now_stats['irritability'], positive=False)}</b> {_bar(now_stats['irritability'])}\n"
+        f"💢 {_ui(locale, 'irritability')}: <b>{_level_word(now_stats['irritability'], positive=False)}</b> {_bar(now_stats['irritability'])}\n"
         f"🧠 Focus: <b>{_level_word(now_stats['focus'])}</b> {_bar(now_stats['focus'])}\n"
-        f"💞 Connection: <b>{_level_word(now_stats['connection_openness'])}</b> {_bar(now_stats['connection_openness'])}\n\n"
-        f"<b>More detail</b>\n"
+        f"💞 {_ui(locale, 'connection')}: <b>{_level_word(now_stats['connection_openness'])}</b> {_bar(now_stats['connection_openness'])}\n\n"
+        f"<b>{_ui(locale, 'more_detail')}</b>\n"
         f"{stat_line('Social drive', '🗣️', 'social')}\n"
         f"{stat_line('Cravings', '🍫', 'cravings')}\n"
         f"{stat_line('Sensitivity', '🫶', 'sensitivity')}\n"
         f"{stat_line('Need for space', '🌫️', 'need_for_space')}\n"
         f"{stat_line('Physical comfort', '🛋️', 'physical_comfort')}\n"
-        f"\n<b>Estimated hormone picture</b>\n"
+        f"\n<b>{_ui(locale, 'estimated_hormone_picture')}</b>\n"
         f"Estrogen <b>{hormones['estrogen']}</b>/100 · "
         f"Progesterone <b>{hormones['progesterone']}</b>/100 · "
         f"LH <b>{hormones['lh']}</b>/100 · "
         f"FSH <b>{hormones['fsh']}</b>/100"
         f"{change_txt}"
-        f"\n\n<b>Feedback</b>\n"
-        f"Tap <b>{BTN_HELPFUL}</b> or <b>{BTN_NOT_HELPFUL}</b> so Daycue can learn which cues actually help."
-        f"\n\nUse <b>/stats</b> or the <b>{BTN_STATS}</b> button for the full cycle view."
+        f"\n\n<b>{_ui(locale, 'feedback')}</b>\n"
+        f"{_ui(locale, 'feedback_hint', helpful=_btn(locale, BTN_HELPFUL), not_helpful=_btn(locale, BTN_NOT_HELPFUL))}"
+        f"\n\n{_ui(locale, 'today_stats_hint', stats=_btn(locale, BTN_STATS))}"
     )
 
 
 async def render_settings(profile: UserProfile) -> str:
+    locale = profile.locale or "en"
     snap = _cycle_snapshot(profile)
     phase = snap["phase"]
     day = snap["day"]
     stats = snap["stats"]
-    desc = await copy_get(f"phase_desc_{phase}", phase=phase)
+    desc = await copy_get(f"phase_desc_{phase}", locale=locale, phase=phase)
     history = await db_fetch_period_history(profile.chat_id, 3)
 
-    next_shift = "No phase switch left in this cycle."
+    next_shift = _ui(locale, "no_next_shift")
     if snap["next_change"] and snap["next_phase"]:
         next_shift = (
             f"<b>{snap['next_change'].isoformat()}</b> → "
-            f"{PHASE_NAME[snap['next_phase']]} {PHASE_EMOJI[snap['next_phase']]}"
+            f"{_phase_name(snap['next_phase'], locale)} {PHASE_EMOJI[snap['next_phase']]}"
         )
 
     history_lines = []
     for item in history:
         history_lines.append(f"• {item['period_start']} → {item['period_end'] or 'unknown'}")
-    history_block = "\n".join(history_lines) if history_lines else "• No period history yet."
+    history_block = "\n".join(history_lines) if history_lines else _ui(locale, "no_history")
 
     return (
-        f"<b>Settings</b>\n\n"
-        f"<b>Partner</b>\n"
-        f"Name: <b>{profile.partner_name}</b>\n"
-        f"Language: <b>{profile.locale}</b>\n"
-        f"Paused: <b>{'yes' if profile.paused else 'no'}</b>\n"
-        f"Notify: <b>{profile.notify_time}</b> ({profile.tz})\n\n"
-        f"<b>Cycle</b>\n"
-        f"Today: <b>Day {day}/{profile.cycle_length}</b>\n"
-        f"Phase: <b>{PHASE_NAME[phase]}</b> {PHASE_EMOJI[phase]}\n"
-        f"Last period: <b>{profile.period_start}</b> → <b>{profile.period_end or 'unknown'}</b>\n"
-        f"Estimated period length: <b>{snap['period_len']} days</b>\n"
-        f"Next shift: {next_shift}\n\n"
-        f"<b>Phase description</b>\n"
+        f"<b>{_ui(locale, 'settings')}</b>\n\n"
+        f"<b>{_ui(locale, 'partner')}</b>\n"
+        f"{_ui(locale, 'name')}: <b>{profile.partner_name}</b>\n"
+        f"{_ui(locale, 'language')}: <b>{profile.locale}</b>\n"
+        f"{_ui(locale, 'paused')}: <b>{_ui(locale, 'yes') if profile.paused else _ui(locale, 'no')}</b>\n"
+        f"{_ui(locale, 'notify')}: <b>{profile.notify_time}</b> ({profile.tz})\n\n"
+        f"<b>{_ui(locale, 'cycle')}</b>\n"
+        f"{_ui(locale, 'today_day')}: <b>Day {day}/{profile.cycle_length}</b>\n"
+        f"{_ui(locale, 'phase')}: <b>{_phase_name(phase, locale)}</b> {PHASE_EMOJI[phase]}\n"
+        f"{_ui(locale, 'last_period')}: <b>{profile.period_start}</b> → <b>{profile.period_end or 'unknown'}</b>\n"
+        f"{_ui(locale, 'estimated_period_length')}: <b>{snap['period_len']} days</b>\n"
+        f"{_ui(locale, 'next_shift')}: {next_shift}\n\n"
+        f"<b>{_ui(locale, 'phase_description')}</b>\n"
         f"{desc}\n\n"
-        f"<b>Quick signal check</b>\n"
+        f"<b>{_ui(locale, 'quick_signal_check')}</b>\n"
         f"{_settings_stat_line('Energy', '⚡', stats['energy'])}\n"
         f"{_settings_stat_line('Mood', '🎭', stats['mood'])}\n"
         f"{_settings_stat_line('Irritability', '💢', stats['irritability'], positive=False)}\n\n"
-        f"<b>Recent period history</b>\n"
+        f"<b>{_ui(locale, 'recent_period_history')}</b>\n"
         f"{history_block}\n\n"
-        f"Open <b>{BTN_STATS}</b> or use <b>/stats</b> for the full stat breakdown, cycle path, and hormone picture.\n\n"
-        f"<b>Commands</b>\n"
+        f"{_ui(locale, 'settings_stats_hint', stats=_btn(locale, BTN_STATS))}\n\n"
+        f"<b>{_ui(locale, 'commands')}</b>\n"
         f"• /update_period\n"
         f"• /set_time HH:MM\n"
         f"• /set_cycle 21-35\n"
-        f"• {BTN_LANGUAGE} or /set_lang\n"
+        f"• {_btn(locale, BTN_LANGUAGE)} or /set_lang\n"
         f"• /pause or /resume\n"
         f"• /re_onboard"
     )
 
 
 async def render_stats(profile: UserProfile) -> str:
+    locale = profile.locale or "en"
     snap = _cycle_snapshot(profile)
     day = snap["day"]
     phase = snap["phase"]
@@ -1138,12 +1459,13 @@ async def render_stats(profile: UserProfile) -> str:
     connect_curve = _spark(_phase_window_values(day, profile.cycle_length, bounds, "connection_openness"))
 
     return (
-        f"<b>Partner stats for today</b>\n"
+        f"<b>{_ui(locale, 'stats_title')}</b>\n"
         f"{profile.partner_name} · Day <b>{day}/{profile.cycle_length}</b> · "
-        f"<b>{PHASE_NAME[phase]}</b> {PHASE_EMOJI[phase]}\n\n"
-        f"<b>Cycle path</b>\n"
-        f"{_cycle_path(day, bounds, profile.cycle_length)}\n\n"
-        f"<b>Current dimensions</b>\n"
+        f"<b>{_phase_name(phase, locale)}</b> {PHASE_EMOJI[phase]}\n\n"
+        f"<b>{_ui(locale, 'cycle_path')}</b>\n"
+        f"{_cycle_path(day, bounds, profile.cycle_length)}\n"
+        f"{_ui(locale, 'day_marker', day=day, cycle_len=profile.cycle_length)}\n\n"
+        f"<b>{_ui(locale, 'current_dimensions')}</b>\n"
         f"{_settings_stat_line('Energy', '⚡', stats['energy'])}\n"
         f"{_settings_stat_line('Mood', '🎭', stats['mood'])}\n"
         f"{_settings_stat_line('Social drive', '🗣️', stats['social'])}\n"
@@ -1154,32 +1476,32 @@ async def render_stats(profile: UserProfile) -> str:
         f"{_settings_stat_line('Need for space', '🌫️', stats['need_for_space'], positive=False)}\n"
         f"{_settings_stat_line('Cravings', '🍫', stats['cravings'], positive=False)}\n"
         f"{_settings_stat_line('Irritability', '💢', stats['irritability'], positive=False)}\n\n"
-        f"<b>Trend window</b>\n"
+        f"<b>{_ui(locale, 'trend_window')}</b>\n"
         f"Energy   {energy_curve}\n"
         f"Mood     {mood_curve}\n"
         f"Irrit.   {irrit_curve}\n"
         f"Focus    {focus_curve}\n"
         f"Connect  {connect_curve}\n\n"
-        f"<b>Estimated hormone picture</b>\n"
+        f"<b>{_ui(locale, 'estimated_hormone_picture')}</b>\n"
         f"• Estrogen: <b>{hormones['estrogen']}</b>/100\n"
         f"• Progesterone: <b>{hormones['progesterone']}</b>/100\n"
         f"• LH: <b>{hormones['lh']}</b>/100\n"
         f"• FSH: <b>{hormones['fsh']}</b>/100\n\n"
-        f"<b>How to read this</b>\n"
-        f"These are estimated support signals, not medical measurements. "
-        f"They help the bot shape the tone, pressure level, and type of care for today.\n\n"
-        f"Use <b>{BTN_TODAY}</b> for the daily cue and <b>{BTN_ABOUT}</b> for the current phase explanation."
+        f"<b>{_ui(locale, 'how_to_read_this')}</b>\n"
+        f"{_ui(locale, 'stats_explainer')}\n\n"
+        f"{_ui(locale, 'stats_hint', today=_btn(locale, BTN_TODAY), about=_btn(locale, BTN_ABOUT))}"
     )
 
 
 async def render_insights(profile: UserProfile) -> str:
+    locale = profile.locale or "en"
     summary = await db_feedback_summary(profile.chat_id, 14)
 
     if summary["total"] == 0:
         return (
-            f"<b>Insights</b>\n\n"
-            f"No feedback yet for {profile.partner_name}.\n\n"
-            f"Use <b>{BTN_HELPFUL}</b> or <b>{BTN_NOT_HELPFUL}</b> after daily cues to start training the model."
+            f"<b>{_ui(locale, 'insights')}</b>\n\n"
+            f"{_ui(locale, 'no_feedback_for', name=profile.partner_name)}\n\n"
+            f"{_ui(locale, 'insights_train_hint', helpful=_btn(locale, BTN_HELPFUL), not_helpful=_btn(locale, BTN_NOT_HELPFUL))}"
         )
 
     phase_lines = []
@@ -1189,7 +1511,7 @@ async def render_insights(profile: UserProfile) -> str:
         rate = round((helpful_count / total) * 100) if total else 0
         phase = row["phase"]
         phase_lines.append(
-            f"• {PHASE_NAME.get(phase, phase)} {PHASE_EMOJI.get(phase, '')}: "
+            f"• {_phase_name(phase, locale)} {PHASE_EMOJI.get(phase, '')}: "
             f"{helpful_count}/{total} helpful ({rate}%)"
         )
 
@@ -1198,7 +1520,7 @@ async def render_insights(profile: UserProfile) -> str:
         latest_lines.append(
             f"• {row['cue_date'].isoformat()} · "
             f"{'👍' if row['helpful'] else '👎'} · "
-            f"{PHASE_NAME.get(row['phase'], row['phase'])} · "
+            f"{_phase_name(row['phase'], locale)} · "
             f"{row['cue_headline']}"
         )
 
@@ -1207,38 +1529,39 @@ async def render_insights(profile: UserProfile) -> str:
     avg_connect = summary["avg_connection"] if summary["avg_connection"] is not None else "n/a"
 
     return (
-        f"<b>Insights</b>\n\n"
-        f"<b>Last {summary['days']} days</b>\n"
-        f"Responses: <b>{summary['total']}</b>\n"
-        f"Helpful: <b>{summary['helpful_count']}</b> ({summary['helpful_rate']}%)\n"
-        f"Avg energy on rated days: <b>{avg_energy}</b>\n"
-        f"Avg irritability on rated days: <b>{avg_irrit}</b>\n"
-        f"Avg connection on rated days: <b>{avg_connect}</b>\n\n"
-        f"<b>By phase</b>\n"
+        f"<b>{_ui(locale, 'insights')}</b>\n\n"
+        f"<b>{_ui(locale, 'last_days', days=summary['days'])}</b>\n"
+        f"{_ui(locale, 'responses')}: <b>{summary['total']}</b>\n"
+        f"{_ui(locale, 'helpful_count')}: <b>{summary['helpful_count']}</b> ({summary['helpful_rate']}%)\n"
+        f"{_ui(locale, 'avg_energy')}: <b>{avg_energy}</b>\n"
+        f"{_ui(locale, 'avg_irritability')}: <b>{avg_irrit}</b>\n"
+        f"{_ui(locale, 'avg_connection')}: <b>{avg_connect}</b>\n\n"
+        f"<b>{_ui(locale, 'by_phase')}</b>\n"
         f"{chr(10).join(phase_lines)}\n\n"
-        f"<b>Recent feedback</b>\n"
+        f"<b>{_ui(locale, 'recent_feedback')}</b>\n"
         f"{chr(10).join(latest_lines)}"
     )
 
 async def render_about_phase(profile: UserProfile) -> str:
     snap = _cycle_snapshot(profile)
     phase = snap["phase"]
-
-    desc = await copy_get(f"phase_desc_{phase}", phase=phase)
+    locale = profile.locale or "en"
+    desc = await copy_get(f"phase_desc_{phase}", locale=locale, phase=phase)
     return (
-        f"<b>{PHASE_NAME[phase]} phase {PHASE_EMOJI[phase]}</b>\n\n"
+        f"<b>{_phase_name(phase, locale)} {PHASE_EMOJI[phase]}</b>\n\n"
         f"{desc}\n\n"
-        f"<b>What usually works best</b>\n"
-        f"{await copy_get(f'help_{phase}', phase=phase)}"
+        f"<b>{_ui(locale, 'what_works_best')}</b>\n"
+        f"{await copy_get(f'help_{phase}', locale=locale, phase=phase)}"
     )
 
 async def render_forecast(profile: UserProfile, days: int = 7) -> str:
+    locale = profile.locale or "en"
     snap = _cycle_snapshot(profile)
     today = snap["today"]
     bounds = snap["bounds"]
     start = snap["start"]
 
-    lines = [f"<b>Next {days} days for {profile.partner_name}</b>\n"]
+    lines = [f"<b>{_ui(locale, 'forecast_title', days=days, name=profile.partner_name)}</b>\n"]
     last_phase = None
     change_points: List[str] = []
     fertile_points: List[str] = []
@@ -1251,7 +1574,7 @@ async def render_forecast(profile: UserProfile, days: int = 7) -> str:
         if last_phase is None:
             last_phase = ph
         elif ph != last_phase:
-            change_points.append(f"• {d.isoformat()} - switches to {PHASE_NAME[ph]} {PHASE_EMOJI[ph]}")
+            change_points.append(f"• {d.isoformat()} - {_ui(locale, 'switches_to')} {_phase_name(ph, locale)} {PHASE_EMOJI[ph]}")
             last_phase = ph
 
         st = _phase_stats(cd, bounds)
@@ -1259,27 +1582,27 @@ async def render_forecast(profile: UserProfile, days: int = 7) -> str:
         hormones = _estimated_hormones(cd, profile.cycle_length, bounds)
         fertility = _fertility_label(cd, bounds)
         if fertility in {"peak", "high"}:
-            fertile_points.append(f"• {d.isoformat()} - {fertility} fertility")
+            fertile_points.append(f"• {d.isoformat()} - {_fertility_text(fertility, locale)} {_ui(locale, 'fertility').lower()}")
         lines.append(
-            f"{d.isoformat()} · Day {cd}/{profile.cycle_length} · {PHASE_NAME[ph]} {PHASE_EMOJI[ph]}\n"
-            f"• Cue: {cue['headline']}\n"
-            f"• Energy {_level_word(st['energy'])} · Irritability {_level_word(st['irritability'], positive=False)} · "
-            f"Connection {_level_word(st['connection_openness'])}\n"
-            f"• Fertility: {fertility}\n"
+            f"{d.isoformat()} · Day {cd}/{profile.cycle_length} · {_phase_name(ph, locale)} {PHASE_EMOJI[ph]}\n"
+            f"• {_ui(locale, 'cue')}: {cue['headline']}\n"
+            f"• {_ui(locale, 'energy')} {_level_word(st['energy'])} · {_ui(locale, 'irritability')} {_level_word(st['irritability'], positive=False)} · "
+            f"{_ui(locale, 'connection')} {_level_word(st['connection_openness'])}\n"
+            f"• {_ui(locale, 'fertility')}: {_fertility_text(fertility, locale)}\n"
             f"• Est/P4: {hormones['estrogen']}/{hormones['progesterone']}"
         )
 
-    lines.append("\n<b>Important shifts</b>")
-    lines.append("\n".join(change_points) if change_points else "• No phase switch within this window.")
-    lines.append("\n<b>Fertility window</b>")
-    lines.append("\n".join(fertile_points) if fertile_points else "• No high-fertility day inside this forecast window.")
+    lines.append(f"\n<b>{_ui(locale, 'important_shifts')}</b>")
+    lines.append("\n".join(change_points) if change_points else _ui(locale, 'no_phase_switch'))
+    lines.append(f"\n<b>{_ui(locale, 'fertility_window')}</b>")
+    lines.append("\n".join(fertile_points) if fertile_points else _ui(locale, 'no_fertility_window'))
     return "\n".join(lines)
 
 # ----------------------------
 # Telegram send helper
 # ----------------------------
 async def _send(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, reply_markup=None):
-    markup = reply_markup or MENU_KB
+    markup = reply_markup or _menu_kb(_lang(context))
     if update.message:
         await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=markup)
     else:
@@ -1334,13 +1657,13 @@ async def o_dob(update: Update, context: ContextTypes.DEFAULT_TYPE):
         update,
         context,
         _lt(context, "start"),
-        reply_markup=DATE_KB,
+        reply_markup=_date_kb(_lang(context)),
     )
     return O_START
 
 async def o_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if _is_menu_press(update.message.text):
-        await _send(update, context, _lt(context, "start"), reply_markup=DATE_KB)
+        await _send(update, context, _lt(context, "start"), reply_markup=_date_kb(_lang(context)))
         return O_START
     t = _norm(update.message.text)
     parsed = _parse_flexible_date_input(t, tz_name=_default_tz(), allow_without_year=True)
@@ -1349,7 +1672,7 @@ async def o_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             update,
             context,
             "Invalid date.\n\nTry <b>5.4</b>, <b>05/04</b>, <b>2026-04-05</b>, or use <b>📅 Today</b>/<b>📅 Yesterday</b>.",
-            reply_markup=DATE_KB,
+            reply_markup=_date_kb(_lang(context)),
         )
         return O_START
     context.user_data["period_start"] = parsed
@@ -1357,13 +1680,13 @@ async def o_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         update,
         context,
         _lt(context, "end"),
-        reply_markup=DATE_KB,
+        reply_markup=_date_kb(_lang(context)),
     )
     return O_END
 
 async def o_end(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if _is_menu_press(update.message.text):
-        await _send(update, context, _lt(context, "end"), reply_markup=DATE_KB)
+        await _send(update, context, _lt(context, "end"), reply_markup=_date_kb(_lang(context)))
         return O_END
     t = _norm(update.message.text).lower()
     if t == "skip":
@@ -1375,13 +1698,13 @@ async def o_end(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 update,
                 context,
                 "Invalid date.\n\nUse <b>8.4</b>, <b>08/04</b>, <b>2026-04-08</b>, or type <b>skip</b>.",
-                reply_markup=DATE_KB,
+                reply_markup=_date_kb(_lang(context)),
             )
             return O_END
         end = dt.date.fromisoformat(parsed)
         start = dt.date.fromisoformat(context.user_data["period_start"])
         if end < start:
-            await _send(update, context, "End date can't be before start date.\n\n4/6 - Try again.", reply_markup=DATE_KB)
+            await _send(update, context, "End date can't be before start date.\n\n4/6 - Try again.", reply_markup=_date_kb(_lang(context)))
             return O_END
         context.user_data["period_end"] = parsed
     await _send(update, context, _lt(context, "cycle"))
@@ -1404,13 +1727,13 @@ async def o_cycle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         update,
         context,
         _lt(context, "time"),
-        reply_markup=TIME_KB,
+        reply_markup=_time_kb(_lang(context)),
     )
     return O_TIME
 
 async def o_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if _is_menu_press(update.message.text):
-        await _send(update, context, _lt(context, "time"), reply_markup=TIME_KB)
+        await _send(update, context, _lt(context, "time"), reply_markup=_time_kb(_lang(context)))
         return O_TIME
     t = _parse_notify_input(update.message.text or "")
     if not t:
@@ -1418,7 +1741,7 @@ async def o_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
             update,
             context,
             "Time format should be <b>HH:MM</b> or choose a preset like <b>Morning</b> or <b>After work</b>.",
-            reply_markup=TIME_KB,
+            reply_markup=_time_kb(_lang(context)),
         )
         return O_TIME
 
@@ -1438,7 +1761,9 @@ async def o_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await db_upsert_user(profile)
     await db_log_period(chat_id, profile.period_start, profile.period_end)
+    locale = profile.locale
     context.user_data.clear()
+    context.user_data["locale"] = locale
 
     # ✅ Critical: show TODAY immediately with menu
     await _send(update, context, _lt(context, "setup_done") + "\n\n" + await render_today(profile))
@@ -1456,42 +1781,49 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profile = await db_fetch_user(update.effective_chat.id)
     if not profile:
         return await start_onboarding(update, context)
+    _sync_locale(context, profile)
     await _send(update, context, await render_today(profile))
 
 async def cmd_today(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profile = await db_fetch_user(update.effective_chat.id)
     if not profile:
         return await start_onboarding(update, context)
+    _sync_locale(context, profile)
     await _send(update, context, await render_today(profile))
 
 async def cmd_forecast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profile = await db_fetch_user(update.effective_chat.id)
     if not profile:
         return await start_onboarding(update, context)
+    _sync_locale(context, profile)
     await _send(update, context, await render_forecast(profile, 7))
 
 async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profile = await db_fetch_user(update.effective_chat.id)
     if not profile:
         return await start_onboarding(update, context)
+    _sync_locale(context, profile)
     await _send(update, context, await render_stats(profile))
 
 async def cmd_insights(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profile = await db_fetch_user(update.effective_chat.id)
     if not profile:
         return await start_onboarding(update, context)
+    _sync_locale(context, profile)
     await _send(update, context, await render_insights(profile))
 
 async def cmd_about(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profile = await db_fetch_user(update.effective_chat.id)
     if not profile:
         return await start_onboarding(update, context)
+    _sync_locale(context, profile)
     await _send(update, context, await render_about_phase(profile))
 
 async def cmd_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profile = await db_fetch_user(update.effective_chat.id)
     if not profile:
         return await start_onboarding(update, context)
+    _sync_locale(context, profile)
     await _send(update, context, await render_settings(profile))
 
 async def cmd_re_onboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1546,6 +1878,7 @@ async def cmd_set_lang(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profile = await db_fetch_user(update.effective_chat.id)
     if not profile:
         return await start_onboarding(update, context)
+    _sync_locale(context, profile)
     parts = (update.message.text or "").split()
     if len(parts) == 1:
         context.user_data["awaiting_lang_select"] = True
@@ -1555,13 +1888,14 @@ async def cmd_set_lang(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profile.locale = parts[1].lower()
     await db_upsert_user(profile)
     context.user_data["awaiting_lang_select"] = False
-    await _send(update, context, f"✅ Language updated to <b>{profile.locale}</b>.\n\n" + await render_settings(profile))
+    await _send(update, context, _ui(profile.locale, "language_updated", locale=profile.locale) + "\n\n" + await render_settings(profile))
 
 
 async def choose_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profile = await db_fetch_user(update.effective_chat.id)
     if not profile:
         return await start_onboarding(update, context)
+    _sync_locale(context, profile)
     context.user_data["awaiting_lang_select"] = True
     await _send(update, context, "Choose a language.", reply_markup=LANG_KB)
 
@@ -1577,8 +1911,8 @@ async def apply_language_choice(update: Update, context: ContextTypes.DEFAULT_TY
     await _send(
         update,
         context,
-        f"✅ Language updated to <b>{locale}</b>.\n\n" + await render_settings(profile),
-        reply_markup=MENU_KB,
+        _ui(locale, "language_updated", locale=locale) + "\n\n" + await render_settings(profile),
+        reply_markup=_menu_kb(locale),
     )
 
 
@@ -1621,7 +1955,7 @@ async def cmd_update_period(update: Update, context: ContextTypes.DEFAULT_TYPE):
         update,
         context,
         "Update period.\n\nStep 1/2 - Send the <b>start date</b>.\nExamples: <b>5.4</b>, <b>05/04</b>, <b>2026-04-05</b>, or use <b>📅 Today</b>/<b>📅 Yesterday</b>.",
-        reply_markup=DATE_KB,
+        reply_markup=_date_kb(profile.locale),
     )
     return U_START
 
@@ -1631,19 +1965,20 @@ async def u_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not profile:
         return await start_onboarding(update, context)
     t = _norm(update.message.text)
+    _sync_locale(context, profile)
     if _is_menu_press(t):
-        await _send(update, context, "Step 1/2 - Send the <b>start date</b>.", reply_markup=DATE_KB)
+        await _send(update, context, "Step 1/2 - Send the <b>start date</b>.", reply_markup=_date_kb(profile.locale))
         return U_START
     parsed = _parse_flexible_date_input(t, tz_name=profile.tz, allow_without_year=True)
     if not parsed:
-        await _send(update, context, "Invalid date.\n\nTry <b>5.4</b>, <b>05/04</b>, <b>2026-04-05</b>, or quick date buttons.", reply_markup=DATE_KB)
+        await _send(update, context, "Invalid date.\n\nTry <b>5.4</b>, <b>05/04</b>, <b>2026-04-05</b>, or quick date buttons.", reply_markup=_date_kb(profile.locale))
         return U_START
     context.user_data["period_update_start"] = parsed
     await _send(
         update,
         context,
         "Step 2/2 - Send the <b>end date</b>, or type <b>skip</b> if you only want to record the start.",
-        reply_markup=DATE_KB,
+        reply_markup=_date_kb(profile.locale),
     )
     return U_END
 
@@ -1655,18 +1990,19 @@ async def u_end(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_s = context.user_data.get("period_update_start")
     if not start_s:
         return await start_onboarding(update, context)
+    _sync_locale(context, profile)
     t = _norm(update.message.text).lower()
     if _is_menu_press(update.message.text):
-        await _send(update, context, "Step 2/2 - Send the <b>end date</b>, or type <b>skip</b>.", reply_markup=DATE_KB)
+        await _send(update, context, "Step 2/2 - Send the <b>end date</b>, or type <b>skip</b>.", reply_markup=_date_kb(profile.locale))
         return U_END
     if t == "skip":
         return await _save_period_update(update, context, start_s, None)
     end_s = _parse_flexible_date_input(t, tz_name=profile.tz, allow_without_year=True)
     if not end_s:
-        await _send(update, context, "Invalid date.\n\nTry <b>9.4</b>, <b>09/04</b>, <b>2026-04-09</b>, or type <b>skip</b>.", reply_markup=DATE_KB)
+        await _send(update, context, "Invalid date.\n\nTry <b>9.4</b>, <b>09/04</b>, <b>2026-04-09</b>, or type <b>skip</b>.", reply_markup=_date_kb(profile.locale))
         return U_END
     if dt.date.fromisoformat(end_s) < dt.date.fromisoformat(start_s):
-        await _send(update, context, "End date cannot be before start date. Try again or type <b>skip</b>.", reply_markup=DATE_KB)
+        await _send(update, context, "End date cannot be before start date. Try again or type <b>skip</b>.", reply_markup=_date_kb(profile.locale))
         return U_END
     return await _save_period_update(update, context, start_s, end_s)
 
@@ -1675,6 +2011,7 @@ async def _record_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE, h
     profile = await db_fetch_user(update.effective_chat.id)
     if not profile:
         return await start_onboarding(update, context)
+    _sync_locale(context, profile)
 
     snap = _cycle_snapshot(profile)
     cue = _cue_pack(snap["phase"], snap["day"], snap["stats"])
@@ -1694,7 +2031,7 @@ async def _record_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE, h
             f"{'👍' if helpful else '👎'} {_feedback_ack(helpful, snap['phase'], snap['stats'])}\n\n"
             f"Today's cue saved as: <b>{cue['headline']}</b>\n"
             f"Day <b>{snap['day']}/{profile.cycle_length}</b> · "
-            f"<b>{PHASE_NAME[snap['phase']]}</b> {PHASE_EMOJI[snap['phase']]}"
+            f"<b>{_phase_name(snap['phase'], profile.locale)}</b> {PHASE_EMOJI[snap['phase']]}"
         ),
     )
 
@@ -1710,23 +2047,24 @@ async def on_menu_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     t = _norm(update.message.text)
     if t in LANG_MAP:
         return await apply_language_choice(update, context, LANG_MAP[t])
-    if t == BTN_TODAY:
+    key = _button_key(t)
+    if key == BTN_TODAY:
         return await cmd_today(update, context)
-    if t == BTN_FORECAST:
+    if key == BTN_FORECAST:
         return await cmd_forecast(update, context)
-    if t == BTN_STATS:
+    if key == BTN_STATS:
         return await cmd_stats(update, context)
-    if t == BTN_INSIGHTS:
+    if key == BTN_INSIGHTS:
         return await cmd_insights(update, context)
-    if t == BTN_SETTINGS:
+    if key == BTN_SETTINGS:
         return await cmd_settings(update, context)
-    if t == BTN_LANGUAGE:
+    if key == BTN_LANGUAGE:
         return await choose_language(update, context)
-    if t == BTN_ABOUT:
+    if key == BTN_ABOUT:
         return await cmd_about(update, context)
-    if t == BTN_HELPFUL:
+    if key == BTN_HELPFUL:
         return await cmd_helpful(update, context)
-    if t == BTN_NOT_HELPFUL:
+    if key == BTN_NOT_HELPFUL:
         return await cmd_not_helpful(update, context)
     await _send(update, context, "Use the menu buttons, or type /start.")
 
@@ -1739,7 +2077,7 @@ async def _send_daily_ping(app: Application, profile: UserProfile):
             chat_id=profile.chat_id,
             text=await render_today(profile),
             parse_mode=ParseMode.HTML,
-            reply_markup=MENU_KB,
+            reply_markup=_menu_kb(profile.locale),
         )
     except Exception:
         LOG.exception("Failed sending ping to chat_id=%s", profile.chat_id)

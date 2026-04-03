@@ -502,6 +502,7 @@ UI_TEXT = {
         "partner": "Partner",
         "name": "Name",
         "language": "Language",
+        "sun_sign": "Sun sign",
         "paused": "Paused",
         "yes": "yes",
         "no": "no",
@@ -514,6 +515,7 @@ UI_TEXT = {
         "next_shift": "Next shift",
         "no_next_shift": "No phase switch left in this cycle.",
         "phase_description": "Phase description",
+        "zodiac_tone": "Personal tone",
         "quick_signal_check": "Quick signal check",
         "recent_period_history": "Recent period history",
         "no_history": "• No period history yet.",
@@ -618,6 +620,7 @@ UI_TEXT = {
         "partner": "Partner",
         "name": "Namn",
         "language": "Sprak",
+        "sun_sign": "Soltecken",
         "paused": "Pausad",
         "yes": "ja",
         "no": "nej",
@@ -630,6 +633,7 @@ UI_TEXT = {
         "next_shift": "Nasta skifte",
         "no_next_shift": "Ingen fasvaxling kvar i den har cykeln.",
         "phase_description": "Fasbeskrivning",
+        "zodiac_tone": "Personlig ton",
         "quick_signal_check": "Snabb signalcheck",
         "recent_period_history": "Senaste periodhistorik",
         "no_history": "• Ingen historik an.",
@@ -734,6 +738,7 @@ UI_TEXT = {
         "partner": "Партнер",
         "name": "Имя",
         "language": "Язык",
+        "sun_sign": "Знак зодиака",
         "paused": "Пауза",
         "yes": "да",
         "no": "нет",
@@ -746,6 +751,7 @@ UI_TEXT = {
         "next_shift": "Следующий переход",
         "no_next_shift": "В этом цикле больше не будет смены фазы.",
         "phase_description": "Описание фазы",
+        "zodiac_tone": "Персональный тон",
         "quick_signal_check": "Быстрый срез",
         "recent_period_history": "Последняя история цикла",
         "no_history": "• Истории пока нет.",
@@ -1032,6 +1038,130 @@ PHASE_NAME = {"menstrual": "Menstrual", "follicular": "Follicular", "ovulatory":
 PHASE_EMOJI = {"menstrual": "🩸", "follicular": "🌱", "ovulatory": "🔥", "luteal": "🌙"}
 PHASE_ORDER = ["menstrual", "follicular", "ovulatory", "luteal"]
 
+SUN_SIGN_CUTOFFS = [
+    ("capricorn", (1, 19)),
+    ("aquarius", (2, 18)),
+    ("pisces", (3, 20)),
+    ("aries", (4, 19)),
+    ("taurus", (5, 20)),
+    ("gemini", (6, 20)),
+    ("cancer", (7, 22)),
+    ("leo", (8, 22)),
+    ("virgo", (9, 22)),
+    ("libra", (10, 22)),
+    ("scorpio", (11, 21)),
+    ("sagittarius", (12, 21)),
+    ("capricorn", (12, 31)),
+]
+
+SUN_SIGN_I18N = {
+    "en": {
+        "aries": "Aries",
+        "taurus": "Taurus",
+        "gemini": "Gemini",
+        "cancer": "Cancer",
+        "leo": "Leo",
+        "virgo": "Virgo",
+        "libra": "Libra",
+        "scorpio": "Scorpio",
+        "sagittarius": "Sagittarius",
+        "capricorn": "Capricorn",
+        "aquarius": "Aquarius",
+        "pisces": "Pisces",
+    },
+    "sv": {
+        "aries": "Vaduren",
+        "taurus": "Oxen",
+        "gemini": "Tvillingarna",
+        "cancer": "Kräftan",
+        "leo": "Lejonet",
+        "virgo": "Jungfrun",
+        "libra": "Vågen",
+        "scorpio": "Skorpionen",
+        "sagittarius": "Skytten",
+        "capricorn": "Stenbocken",
+        "aquarius": "Vattumannen",
+        "pisces": "Fiskarna",
+    },
+    "ru": {
+        "aries": "Овен",
+        "taurus": "Телец",
+        "gemini": "Близнецы",
+        "cancer": "Рак",
+        "leo": "Лев",
+        "virgo": "Дева",
+        "libra": "Весы",
+        "scorpio": "Скорпион",
+        "sagittarius": "Стрелец",
+        "capricorn": "Козерог",
+        "aquarius": "Водолей",
+        "pisces": "Рыбы",
+    },
+}
+
+ZODIAC_OVERLAYS = {
+    "aries": {
+        "tone": {"en": "Direct, clear support tends to land best.", "sv": "Direkt och tydligt stod landar ofta bast.", "ru": "Обычно лучше всего заходит прямая и ясная поддержка."},
+        "do": {"en": "Keep it brief, practical, and decisive rather than overexplained.", "sv": "Hall det kort, praktiskt och beslutsamt snarare an overforklarat.", "ru": "Делай поддержку короткой, практичной и решительной, а не перегруженной объяснениями."},
+        "avoid": {"en": "Avoid hesitating or sounding uncertain if you already know how to help.", "sv": "Undvik att tveka eller lata osaker om du redan vet hur du kan hjalpa.", "ru": "Избегай колебаний и неуверенного тона, если уже понимаешь, как помочь."},
+    },
+    "taurus": {
+        "tone": {"en": "Comfort, steadiness, and reliability tend to matter more here.", "sv": "Komfort, stabilitet och palitlighet spelar ofta storre roll har.", "ru": "Здесь обычно особенно важны комфорт, стабильность и надежность."},
+        "do": {"en": "Make the environment calmer, more comfortable, and less rushed.", "sv": "Gor omgivningen lugnare, bekvamare och mindre stressig.", "ru": "Сделай обстановку спокойнее, комфортнее и менее спешной."},
+        "avoid": {"en": "Avoid rushing her into decisions or sudden plan changes.", "sv": "Undvik att stressa fram beslut eller plotsliga planandringar.", "ru": "Избегай спешки с решениями и резких изменений планов."},
+    },
+    "gemini": {
+        "tone": {"en": "A lighter, more flexible tone usually works better.", "sv": "En lattare och mer flexibel ton fungerar oftast battre.", "ru": "Обычно лучше работает более легкий и гибкий тон."},
+        "do": {"en": "Keep support conversational and give options rather than one heavy ask.", "sv": "Hall stodet samtalsnara och ge alternativ i stallet for ett tungt krav.", "ru": "Делай поддержку более разговорной и предлагай варианты вместо одного тяжелого запроса."},
+        "avoid": {"en": "Avoid making the whole day feel emotionally heavy if it can stay lighter.", "sv": "Undvik att gora hela dagen emotionellt tung om den kan hallas lattare.", "ru": "Не делай весь день эмоционально тяжелым, если можно сохранить легкость."},
+    },
+    "cancer": {
+        "tone": {"en": "Softness, reassurance, and emotional safety matter more.", "sv": "Mjukhet, trygghet och emotionell sakerhet spelar storre roll.", "ru": "Здесь особенно важны мягкость, reassurance и чувство эмоциональной безопасности."},
+        "do": {"en": "Lead with warmth and care before trying to solve anything.", "sv": "Borja med varme och omtanke innan du forsoker losa nagot.", "ru": "Сначала дай тепло и заботу, а уже потом пытайся что-то решать."},
+        "avoid": {"en": "Avoid sounding cold, corrective, or emotionally distant.", "sv": "Undvik att lata kall, korrigerande eller emotionellt avstandlig.", "ru": "Избегай холодного, поправляющего или отстраненного тона."},
+    },
+    "leo": {
+        "tone": {"en": "Warm appreciation and visible attention often land well.", "sv": "Varm uppskattning och tydlig uppmarksamhet landar ofta bra.", "ru": "Теплая признательность и заметное внимание обычно заходят хорошо."},
+        "do": {"en": "Notice her effort and make the support feel generous, not minimal.", "sv": "Uppmarkamma hennes insats och lat stodet kannas generost, inte minimalt.", "ru": "Замечай ее усилия и делай поддержку щедрой, а не минимальной."},
+        "avoid": {"en": "Avoid dismissing her effort or offering flat, indifferent care.", "sv": "Undvik att avfarda hennes insats eller ge platt, likgiltig omsorg.", "ru": "Не обесценивай ее усилия и не предлагай плоскую, безразличную заботу."},
+    },
+    "virgo": {
+        "tone": {"en": "Practical clarity and reduced chaos usually help most.", "sv": "Praktisk tydlighet och mindre kaos hjalper oftast mest.", "ru": "Обычно лучше всего помогают практичная ясность и меньше хаоса."},
+        "do": {"en": "Take care of details, structure, and one practical burden she should not have to carry.", "sv": "Ta hand om detaljer, struktur och en praktisk belastning hon inte ska behova bara.", "ru": "Возьми на себя детали, структуру и одну практическую нагрузку, которую ей не стоит нести."},
+        "avoid": {"en": "Avoid vague offers of help that still leave her managing everything.", "sv": "Undvik vaga erbjudanden om hjalp som anda lamnar allt ansvar hos henne.", "ru": "Избегай расплывчатой помощи, после которой вся организация все равно остается на ней."},
+    },
+    "libra": {
+        "tone": {"en": "Harmony, tact, and a balanced tone will probably land better.", "sv": "Harmoni, takt och en balanserad ton landar troligen battre.", "ru": "Гармония, такт и более сбалансированный тон, вероятно, сработают лучше."},
+        "do": {"en": "Keep interaction easy, elegant, and low-friction.", "sv": "Hall samspelet enkelt, smidigt och med lag friktion.", "ru": "Сделай общение более легким, плавным и без лишнего трения."},
+        "avoid": {"en": "Avoid abruptness, pressure, or forcing a fast emotional decision.", "sv": "Undvik abrupthet, press eller att tvinga fram ett snabbt emotionellt beslut.", "ru": "Избегай резкости, давления и попыток быстро вытянуть эмоциональное решение."},
+    },
+    "scorpio": {
+        "tone": {"en": "Depth, sincerity, and respect for privacy matter more here.", "sv": "Djup, uppriktighet och respekt for privatliv betyder mer har.", "ru": "Здесь особенно важны глубина, искренность и уважение к личному пространству."},
+        "do": {"en": "Be real, stay steady, and support without prying.", "sv": "Var uppriktig, stabil och stod utan att tranga dig pa.", "ru": "Будь искренним, устойчивым и поддерживай без давления и вторжения."},
+        "avoid": {"en": "Avoid superficial reassurance or pushing for immediate openness.", "sv": "Undvik ytlig trygghet eller att pressa fram omedelbar oppenhet.", "ru": "Избегай поверхностного успокоения и давления на немедленную откровенность."},
+    },
+    "sagittarius": {
+        "tone": {"en": "Space, optimism, and lightness usually work better.", "sv": "Utrymme, optimism och latthet fungerar oftast battre.", "ru": "Обычно лучше работают пространство, оптимизм и легкость."},
+        "do": {"en": "Keep support spacious and positive instead of emotionally trapping.", "sv": "Hall stodet rymligt och positivt i stallet for emotionellt fangande.", "ru": "Делай поддержку более свободной и позитивной, без ощущения эмоциональной ловушки."},
+        "avoid": {"en": "Avoid making the moment feel claustrophobic or overcontrolled.", "sv": "Undvik att gora ogonblicket klaustrofobiskt eller overkontrollerat.", "ru": "Не делай момент удушающим или слишком контролируемым."},
+    },
+    "capricorn": {
+        "tone": {"en": "Competence, steadiness, and quiet dependability matter more.", "sv": "Kompetens, stabilitet och tyst palitlighet betyder mer.", "ru": "Здесь особенно важны компетентность, устойчивость и тихая надежность."},
+        "do": {"en": "Take weight off her shoulders with concrete action.", "sv": "Ta vikt fran hennes axlar med konkret handling.", "ru": "Сними часть веса с ее плеч конкретным действием."},
+        "avoid": {"en": "Avoid empty reassurance without doing anything practical.", "sv": "Undvik tom trygghet utan nagot praktiskt handlande.", "ru": "Избегай пустого успокоения без реального практического шага."},
+    },
+    "aquarius": {
+        "tone": {"en": "Respect for autonomy and non-invasive support will land better.", "sv": "Respekt for autonomi och icke-patrangande stod landar battre.", "ru": "Лучше сработают уважение к автономии и ненавязчивая поддержка."},
+        "do": {"en": "Offer help without crowding her or demanding a response right away.", "sv": "Erbjud hjalp utan att tranga dig pa eller krava svar direkt.", "ru": "Предлагай помощь без нависания и без требования ответа сразу."},
+        "avoid": {"en": "Avoid clinginess, over-monitoring, or turning support into control.", "sv": "Undvik klangighet, overvakning eller att gora stod till kontroll.", "ru": "Избегай липкости, чрезмерного контроля и превращения поддержки в управление."},
+    },
+    "pisces": {
+        "tone": {"en": "Gentleness, tenderness, and emotional cushioning help more.", "sv": "Mjukhet, omhet och emotionell uppmjukning hjalper mer.", "ru": "Здесь лучше помогают мягкость, нежность и эмоциональное смягчение."},
+        "do": {"en": "Make the whole interaction feel softer, calmer, and easier to sink into.", "sv": "Lat hela samspelet kannas mjukare, lugnare och lattare att landa i.", "ru": "Сделай все взаимодействие мягче, спокойнее и проще для проживания."},
+        "avoid": {"en": "Avoid harsh realism, overstimulation, or a too hard edge.", "sv": "Undvik hard realism, overstimulans eller en for hard kant.", "ru": "Избегай жесткого реализма, перегруза и слишком резкой подачи."},
+    },
+}
+
 PHASE_NAME_I18N = {
     "en": PHASE_NAME,
     "sv": {"menstrual": "Menstruell", "follicular": "Follikular", "ovulatory": "Ovulatorisk", "luteal": "Luteal"},
@@ -1051,6 +1181,49 @@ def _phase_name(phase: str, locale: str) -> str:
 
 def _fertility_text(level: str, locale: str) -> str:
     return FERTILITY_I18N.get(locale, FERTILITY_I18N["en"]).get(level, level)
+
+
+def _sun_sign_from_dob(dob: Optional[str]) -> Optional[str]:
+    if not dob:
+        return None
+    d = dt.date.fromisoformat(dob)
+    for sign, (month, last_day) in SUN_SIGN_CUTOFFS:
+        if d.month < month:
+            break
+        if d.month == month and d.day <= last_day:
+            return sign
+    return "capricorn"
+
+
+def _sun_sign_label(sign: Optional[str], locale: str) -> Optional[str]:
+    if not sign:
+        return None
+    return SUN_SIGN_I18N.get(locale, SUN_SIGN_I18N["en"]).get(sign, sign)
+
+
+def _zodiac_overlay(profile: UserProfile, locale: str) -> Optional[Dict[str, str]]:
+    sign = _sun_sign_from_dob(profile.partner_dob)
+    if not sign:
+        return None
+    pack = ZODIAC_OVERLAYS.get(sign)
+    if not pack:
+        return None
+    return {
+        "sign": sign,
+        "label": _sun_sign_label(sign, locale) or sign,
+        "tone": pack["tone"].get(locale, pack["tone"]["en"]),
+        "do": pack["do"].get(locale, pack["do"]["en"]),
+        "avoid": pack["avoid"].get(locale, pack["avoid"]["en"]),
+    }
+
+
+def _apply_zodiac_to_cue(cue: Dict[str, str], zodiac: Optional[Dict[str, str]]) -> Dict[str, str]:
+    if not zodiac:
+        return cue
+    merged = dict(cue)
+    merged["do"] = f"{merged['do']} {zodiac['do']}"
+    merged["avoid"] = f"{merged['avoid']} {zodiac['avoid']}"
+    return merged
 
 def _arrow(cur: int, prev: int) -> str:
     if cur > prev: return "↗"
@@ -1494,8 +1667,12 @@ async def render_today(profile: UserProfile) -> str:
     now_stats = snap["stats"]
     hormones = snap["hormones"]
     prev_stats = _phase_stats(yday_num, bounds)
-    cue = _cue_pack(phase, day, now_stats, locale)
+    zodiac = _zodiac_overlay(profile, locale)
+    cue = _apply_zodiac_to_cue(_cue_pack(phase, day, now_stats, locale), zodiac)
     support = _extra_support_lines(phase, now_stats, hormones, day, locale)
+    if zodiac:
+        support["relationship"] = f"{support['relationship']} {_ui(locale, 'zodiac_tone')}: {zodiac['tone']}"
+    zodiac_block = f"<b>{_ui(locale, 'sun_sign')}</b>: <b>{zodiac['label']}</b>\n{zodiac['tone']}\n\n" if zodiac else ""
 
     def stat_line(label: str, emoji: str, key: str):
         return f"{emoji} {label}: {_bar(now_stats[key])} {_arrow(now_stats[key], prev_stats[key])}"
@@ -1512,6 +1689,7 @@ async def render_today(profile: UserProfile) -> str:
         f"<b>{_ui(locale, 'today_for', name=profile.partner_name)}</b>\n"
         f"{_ui(locale, 'day_short')} <b>{day}/{profile.cycle_length}</b> · <b>{_phase_name(phase, locale)}</b> {PHASE_EMOJI[phase]}\n"
         f"{_phase_summary_text(phase, now_stats, locale)}\n\n"
+        f"{zodiac_block}"
         f"<b>{_ui(locale, 'todays_cue')}</b>\n"
         f"<b>{cue['headline']}</b>\n"
         f"{cue['do']}\n\n"
@@ -1553,6 +1731,7 @@ async def render_settings(profile: UserProfile) -> str:
     phase = snap["phase"]
     day = snap["day"]
     stats = snap["stats"]
+    zodiac = _zodiac_overlay(profile, locale)
     desc = await copy_get(f"phase_desc_{phase}", locale=locale, phase=phase)
     history = await db_fetch_period_history(profile.chat_id, 3)
 
@@ -1572,6 +1751,7 @@ async def render_settings(profile: UserProfile) -> str:
         f"<b>{_ui(locale, 'settings')}</b>\n\n"
         f"<b>{_ui(locale, 'partner')}</b>\n"
         f"{_ui(locale, 'name')}: <b>{profile.partner_name}</b>\n"
+        f"{_ui(locale, 'sun_sign')}: <b>{zodiac['label'] if zodiac else _ui(locale, 'unknown')}</b>\n"
         f"{_ui(locale, 'language')}: <b>{profile.locale}</b>\n"
         f"{_ui(locale, 'paused')}: <b>{_ui(locale, 'yes') if profile.paused else _ui(locale, 'no')}</b>\n"
         f"{_ui(locale, 'notify')}: <b>{profile.notify_time}</b> ({profile.tz})\n\n"
@@ -1717,6 +1897,7 @@ async def render_forecast(profile: UserProfile, days: int = 7) -> str:
     today = snap["today"]
     bounds = snap["bounds"]
     start = snap["start"]
+    zodiac = _zodiac_overlay(profile, locale)
 
     lines = [f"<b>{_ui(locale, 'forecast_title', days=days, name=profile.partner_name)}</b>\n"]
     last_phase = None
@@ -1735,7 +1916,7 @@ async def render_forecast(profile: UserProfile, days: int = 7) -> str:
             last_phase = ph
 
         st = _phase_stats(cd, bounds)
-        cue = _cue_pack(ph, cd, st, locale)
+        cue = _apply_zodiac_to_cue(_cue_pack(ph, cd, st, locale), zodiac)
         hormones = _estimated_hormones(cd, profile.cycle_length, bounds)
         fertility = _fertility_label(cd, bounds)
         if fertility in {"peak", "high"}:
@@ -2176,7 +2357,10 @@ async def _record_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE, h
     _sync_locale(context, profile)
 
     snap = _cycle_snapshot(profile)
-    cue = _cue_pack(snap["phase"], snap["day"], snap["stats"], profile.locale)
+    cue = _apply_zodiac_to_cue(
+        _cue_pack(snap["phase"], snap["day"], snap["stats"], profile.locale),
+        _zodiac_overlay(profile, profile.locale),
+    )
     await db_upsert_feedback(
         chat_id=profile.chat_id,
         cue_date=snap["today"].isoformat(),

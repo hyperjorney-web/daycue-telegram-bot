@@ -565,6 +565,39 @@ UI_TEXT = {
         "fertility": "Fertility",
         "day_marker": "Today marker: <b>day {day}/{cycle_len}</b>",
         "language_updated": "✅ Language updated to <b>{locale}</b>.",
+        "social_drive": "Social drive",
+        "focus": "Focus",
+        "connection_openness": "Connection openness",
+        "physical_comfort": "Physical comfort",
+        "sensitivity": "Sensitivity",
+        "need_for_space": "Need for space",
+        "cravings": "Cravings",
+        "mood": "Mood",
+        "updated": "✅ Updated.",
+        "paused_pings": "⏸ Paused daily pings.",
+        "resumed_pings": "▶️ Resumed daily pings.",
+        "choose_language": "Choose a language.",
+        "usage_set_time": "Usage: /set_time HH:MM\nExamples: /set_time 08:00, /set_time evening",
+        "usage_set_cycle": "Usage: /set_cycle 21-35",
+        "cycle_length_invalid": "Cycle length should be 21-35.",
+        "usage_set_lang": "Usage: /set_lang en|sv|ru",
+        "usage_dates_short": "Dates can be short.\nExamples: /update_period 5.4 9.4 or /update_period 2026-04-05",
+        "end_before_start_short": "END cannot be before START.",
+        "update_period_intro": "Update period.\n\nStep 1/2 - Send the <b>start date</b>.\nExamples: <b>5.4</b>, <b>05/04</b>, <b>2026-04-05</b>, or use quick date buttons.",
+        "update_period_step1": "Step 1/2 - Send the <b>start date</b>.",
+        "update_period_step2": "Step 2/2 - Send the <b>end date</b>, or type <b>skip</b> if you only want to record the start.",
+        "update_period_step2_short": "Step 2/2 - Send the <b>end date</b>, or type <b>skip</b>.",
+        "invalid_date_start": "Invalid date.\n\nTry <b>5.4</b>, <b>05/04</b>, <b>2026-04-05</b>, or quick date buttons.",
+        "invalid_date_end": "Invalid date.\n\nTry <b>9.4</b>, <b>09/04</b>, <b>2026-04-09</b>, or type <b>skip</b>.",
+        "period_saved": "✅ Period updated and added to history.",
+        "period_end_before_start": "End date cannot be before start date. Try again or type <b>skip</b>.",
+        "invalid_dob": "Invalid date.\n\nUse <b>YYYY-MM-DD</b> or <b>DD.MM.YYYY</b>, or type <b>skip</b>.",
+        "invalid_end_onboarding": "Invalid date.\n\nUse <b>8.4</b>, <b>08/04</b>, <b>2026-04-08</b>, or type <b>skip</b>.",
+        "end_before_start_onboarding": "End date can't be before start date.\n\n4/6 - Try again.",
+        "enter_cycle_number": "Enter a number 21-35.\n\n5/6 - Cycle length in days (21-35).",
+        "invalid_time": "Time format should be <b>HH:MM</b> or choose a preset like <b>Morning</b> or <b>After work</b>.",
+        "cue_saved": "Today's cue saved as: <b>{headline}</b>",
+        "use_menu": "Use the menu buttons, or type /start.",
     },
     "sv": {
         "settings": "Installningar",
@@ -634,6 +667,39 @@ UI_TEXT = {
         "fertility": "Fertilitet",
         "day_marker": "Markor idag: <b>dag {day}/{cycle_len}</b>",
         "language_updated": "✅ Spraket uppdaterades till <b>{locale}</b>.",
+        "social_drive": "Social drift",
+        "focus": "Fokus",
+        "connection_openness": "Oppning for kontakt",
+        "physical_comfort": "Fysisk komfort",
+        "sensitivity": "Kanslighet",
+        "need_for_space": "Behov av utrymme",
+        "cravings": "Sug",
+        "mood": "Humor",
+        "updated": "✅ Uppdaterat.",
+        "paused_pings": "⏸ Dagliga notiser pausade.",
+        "resumed_pings": "▶️ Dagliga notiser aterupptagna.",
+        "choose_language": "Valj sprak.",
+        "usage_set_time": "Anvandning: /set_time HH:MM\nExempel: /set_time 08:00, /set_time evening",
+        "usage_set_cycle": "Anvandning: /set_cycle 21-35",
+        "cycle_length_invalid": "Cykellangden ska vara 21-35.",
+        "usage_set_lang": "Anvandning: /set_lang en|sv|ru",
+        "usage_dates_short": "Datum kan vara korta.\nExempel: /update_period 5.4 9.4 eller /update_period 2026-04-05",
+        "end_before_start_short": "SLUT kan inte vara fore START.",
+        "update_period_intro": "Uppdatera period.\n\nSteg 1/2 - Skicka <b>startdatum</b>.\nExempel: <b>5.4</b>, <b>05/04</b>, <b>2026-04-05</b>, eller anvand snabbknapparna.",
+        "update_period_step1": "Steg 1/2 - Skicka <b>startdatum</b>.",
+        "update_period_step2": "Steg 2/2 - Skicka <b>slutdatum</b>, eller skriv <b>skip</b> om du bara vill spara starten.",
+        "update_period_step2_short": "Steg 2/2 - Skicka <b>slutdatum</b>, eller skriv <b>skip</b>.",
+        "invalid_date_start": "Ogiltigt datum.\n\nProva <b>5.4</b>, <b>05/04</b>, <b>2026-04-05</b>, eller snabbknapparna.",
+        "invalid_date_end": "Ogiltigt datum.\n\nProva <b>9.4</b>, <b>09/04</b>, <b>2026-04-09</b>, eller skriv <b>skip</b>.",
+        "period_saved": "✅ Perioden uppdaterades och lades till i historiken.",
+        "period_end_before_start": "Slutdatum kan inte vara fore startdatum. Forsok igen eller skriv <b>skip</b>.",
+        "invalid_dob": "Ogiltigt datum.\n\nAnvand <b>YYYY-MM-DD</b> eller <b>DD.MM.YYYY</b>, eller skriv <b>skip</b>.",
+        "invalid_end_onboarding": "Ogiltigt datum.\n\nAnvand <b>8.4</b>, <b>08/04</b>, <b>2026-04-08</b>, eller skriv <b>skip</b>.",
+        "end_before_start_onboarding": "Slutdatum kan inte vara fore startdatum.\n\n4/6 - Forsok igen.",
+        "enter_cycle_number": "Ange ett tal 21-35.\n\n5/6 - Cykellangd i dagar (21-35).",
+        "invalid_time": "Tidsformatet ska vara <b>HH:MM</b> eller valj en preset som <b>Morgon</b> eller <b>Efter jobbet</b>.",
+        "cue_saved": "Dagens cue sparades som: <b>{headline}</b>",
+        "use_menu": "Anvand menyknapparna eller skriv /start.",
     },
     "ru": {
         "settings": "Настройки",
@@ -703,6 +769,39 @@ UI_TEXT = {
         "fertility": "Фертильность",
         "day_marker": "Маркер сегодня: <b>день {day}/{cycle_len}</b>",
         "language_updated": "✅ Язык обновлен на <b>{locale}</b>.",
+        "social_drive": "Социальность",
+        "focus": "Фокус",
+        "connection_openness": "Открытость к контакту",
+        "physical_comfort": "Физический комфорт",
+        "sensitivity": "Чувствительность",
+        "need_for_space": "Потребность в пространстве",
+        "cravings": "Тяга",
+        "mood": "Настроение",
+        "updated": "✅ Обновлено.",
+        "paused_pings": "⏸ Ежедневные уведомления поставлены на паузу.",
+        "resumed_pings": "▶️ Ежедневные уведомления снова включены.",
+        "choose_language": "Выбери язык.",
+        "usage_set_time": "Использование: /set_time HH:MM\nПримеры: /set_time 08:00, /set_time evening",
+        "usage_set_cycle": "Использование: /set_cycle 21-35",
+        "cycle_length_invalid": "Длина цикла должна быть 21-35.",
+        "usage_set_lang": "Использование: /set_lang en|sv|ru",
+        "usage_dates_short": "Даты могут быть короткими.\nПримеры: /update_period 5.4 9.4 или /update_period 2026-04-05",
+        "end_before_start_short": "КОНЕЦ не может быть раньше НАЧАЛА.",
+        "update_period_intro": "Обновление периода.\n\nШаг 1/2 - Отправь <b>дату начала</b>.\nПримеры: <b>5.4</b>, <b>05/04</b>, <b>2026-04-05</b>, или используй быстрые кнопки.",
+        "update_period_step1": "Шаг 1/2 - Отправь <b>дату начала</b>.",
+        "update_period_step2": "Шаг 2/2 - Отправь <b>дату окончания</b> или напиши <b>skip</b>, если хочешь сохранить только начало.",
+        "update_period_step2_short": "Шаг 2/2 - Отправь <b>дату окончания</b> или напиши <b>skip</b>.",
+        "invalid_date_start": "Неверная дата.\n\nПопробуй <b>5.4</b>, <b>05/04</b>, <b>2026-04-05</b> или быстрые кнопки.",
+        "invalid_date_end": "Неверная дата.\n\nПопробуй <b>9.4</b>, <b>09/04</b>, <b>2026-04-09</b> или напиши <b>skip</b>.",
+        "period_saved": "✅ Период обновлен и добавлен в историю.",
+        "period_end_before_start": "Дата окончания не может быть раньше даты начала. Попробуй снова или напиши <b>skip</b>.",
+        "invalid_dob": "Неверная дата.\n\nИспользуй <b>YYYY-MM-DD</b> или <b>DD.MM.YYYY</b>, либо <b>skip</b>.",
+        "invalid_end_onboarding": "Неверная дата.\n\nИспользуй <b>8.4</b>, <b>08/04</b>, <b>2026-04-08</b>, или напиши <b>skip</b>.",
+        "end_before_start_onboarding": "Дата окончания не может быть раньше даты начала.\n\n4/6 - Попробуй снова.",
+        "enter_cycle_number": "Введи число 21-35.\n\n5/6 - Длина цикла в днях (21-35).",
+        "invalid_time": "Формат времени должен быть <b>HH:MM</b> или выбери пресет вроде <b>Утро</b> или <b>После работы</b>.",
+        "cue_saved": "Совет дня сохранен как: <b>{headline}</b>",
+        "use_menu": "Используй кнопки меню или напиши /start.",
     },
 }
 
@@ -1372,16 +1471,16 @@ async def render_today(profile: UserProfile) -> str:
         f"• {_ui(locale, 'regulation')}: {support['regulate']}\n\n"
         f"<b>{_ui(locale, 'signals_today')}</b>\n"
         f"⚡ {_ui(locale, 'energy')}: <b>{_level_word(now_stats['energy'])}</b> {_bar(now_stats['energy'])}\n"
-        f"🎭 Mood: <b>{_level_word(now_stats['mood'])}</b> {_bar(now_stats['mood'])}\n"
+        f"🎭 {_ui(locale, 'mood')}: <b>{_level_word(now_stats['mood'])}</b> {_bar(now_stats['mood'])}\n"
         f"💢 {_ui(locale, 'irritability')}: <b>{_level_word(now_stats['irritability'], positive=False)}</b> {_bar(now_stats['irritability'])}\n"
         f"🧠 Focus: <b>{_level_word(now_stats['focus'])}</b> {_bar(now_stats['focus'])}\n"
         f"💞 {_ui(locale, 'connection')}: <b>{_level_word(now_stats['connection_openness'])}</b> {_bar(now_stats['connection_openness'])}\n\n"
         f"<b>{_ui(locale, 'more_detail')}</b>\n"
-        f"{stat_line('Social drive', '🗣️', 'social')}\n"
-        f"{stat_line('Cravings', '🍫', 'cravings')}\n"
-        f"{stat_line('Sensitivity', '🫶', 'sensitivity')}\n"
-        f"{stat_line('Need for space', '🌫️', 'need_for_space')}\n"
-        f"{stat_line('Physical comfort', '🛋️', 'physical_comfort')}\n"
+        f"{stat_line(_ui(locale, 'social_drive'), '🗣️', 'social')}\n"
+        f"{stat_line(_ui(locale, 'cravings'), '🍫', 'cravings')}\n"
+        f"{stat_line(_ui(locale, 'sensitivity'), '🫶', 'sensitivity')}\n"
+        f"{stat_line(_ui(locale, 'need_for_space'), '🌫️', 'need_for_space')}\n"
+        f"{stat_line(_ui(locale, 'physical_comfort'), '🛋️', 'physical_comfort')}\n"
         f"\n<b>{_ui(locale, 'estimated_hormone_picture')}</b>\n"
         f"Estrogen <b>{hormones['estrogen']}</b>/100 · "
         f"Progesterone <b>{hormones['progesterone']}</b>/100 · "
@@ -1431,9 +1530,9 @@ async def render_settings(profile: UserProfile) -> str:
         f"<b>{_ui(locale, 'phase_description')}</b>\n"
         f"{desc}\n\n"
         f"<b>{_ui(locale, 'quick_signal_check')}</b>\n"
-        f"{_settings_stat_line('Energy', '⚡', stats['energy'])}\n"
-        f"{_settings_stat_line('Mood', '🎭', stats['mood'])}\n"
-        f"{_settings_stat_line('Irritability', '💢', stats['irritability'], positive=False)}\n\n"
+        f"{_settings_stat_line(_ui(locale, 'energy'), '⚡', stats['energy'])}\n"
+        f"{_settings_stat_line(_ui(locale, 'mood'), '🎭', stats['mood'])}\n"
+        f"{_settings_stat_line(_ui(locale, 'irritability'), '💢', stats['irritability'], positive=False)}\n\n"
         f"<b>{_ui(locale, 'recent_period_history')}</b>\n"
         f"{history_block}\n\n"
         f"{_ui(locale, 'settings_stats_hint', stats=_btn(locale, BTN_STATS))}\n\n"
@@ -1470,16 +1569,16 @@ async def render_stats(profile: UserProfile) -> str:
         f"{_cycle_path(day, bounds, profile.cycle_length)}\n"
         f"{_ui(locale, 'day_marker', day=day, cycle_len=profile.cycle_length)}\n\n"
         f"<b>{_ui(locale, 'current_dimensions')}</b>\n"
-        f"{_settings_stat_line('Energy', '⚡', stats['energy'])}\n"
-        f"{_settings_stat_line('Mood', '🎭', stats['mood'])}\n"
-        f"{_settings_stat_line('Social drive', '🗣️', stats['social'])}\n"
-        f"{_settings_stat_line('Focus', '🧠', stats['focus'])}\n"
-        f"{_settings_stat_line('Connection openness', '💞', stats['connection_openness'])}\n"
-        f"{_settings_stat_line('Physical comfort', '🛋️', stats['physical_comfort'])}\n"
-        f"{_settings_stat_line('Sensitivity', '🫶', stats['sensitivity'], positive=False)}\n"
-        f"{_settings_stat_line('Need for space', '🌫️', stats['need_for_space'], positive=False)}\n"
-        f"{_settings_stat_line('Cravings', '🍫', stats['cravings'], positive=False)}\n"
-        f"{_settings_stat_line('Irritability', '💢', stats['irritability'], positive=False)}\n\n"
+        f"{_settings_stat_line(_ui(locale, 'energy'), '⚡', stats['energy'])}\n"
+        f"{_settings_stat_line(_ui(locale, 'mood'), '🎭', stats['mood'])}\n"
+        f"{_settings_stat_line(_ui(locale, 'social_drive'), '🗣️', stats['social'])}\n"
+        f"{_settings_stat_line(_ui(locale, 'focus'), '🧠', stats['focus'])}\n"
+        f"{_settings_stat_line(_ui(locale, 'connection_openness'), '💞', stats['connection_openness'])}\n"
+        f"{_settings_stat_line(_ui(locale, 'physical_comfort'), '🛋️', stats['physical_comfort'])}\n"
+        f"{_settings_stat_line(_ui(locale, 'sensitivity'), '🫶', stats['sensitivity'], positive=False)}\n"
+        f"{_settings_stat_line(_ui(locale, 'need_for_space'), '🌫️', stats['need_for_space'], positive=False)}\n"
+        f"{_settings_stat_line(_ui(locale, 'cravings'), '🍫', stats['cravings'], positive=False)}\n"
+        f"{_settings_stat_line(_ui(locale, 'irritability'), '💢', stats['irritability'], positive=False)}\n\n"
         f"<b>{_ui(locale, 'trend_window')}</b>\n"
         f"Energy   {energy_curve}\n"
         f"Mood     {mood_curve}\n"
@@ -1654,7 +1753,7 @@ async def o_dob(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         parsed = _parse_flexible_date_input(t, tz_name=_default_tz(), allow_without_year=False)
         if not parsed:
-            await _send(update, context, "Invalid date.\n\nUse <b>YYYY-MM-DD</b> or <b>DD.MM.YYYY</b>, or type <b>skip</b>.")
+            await _send(update, context, _ui(_lang(context), "invalid_dob"))
             return O_DOB
         context.user_data["partner_dob"] = parsed
     await _send(
@@ -1675,7 +1774,7 @@ async def o_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _send(
             update,
             context,
-            "Invalid date.\n\nTry <b>5.4</b>, <b>05/04</b>, <b>2026-04-05</b>, or use <b>📅 Today</b>/<b>📅 Yesterday</b>.",
+            _ui(_lang(context), "invalid_date_start"),
             reply_markup=_date_kb(_lang(context)),
         )
         return O_START
@@ -1701,14 +1800,14 @@ async def o_end(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await _send(
                 update,
                 context,
-                "Invalid date.\n\nUse <b>8.4</b>, <b>08/04</b>, <b>2026-04-08</b>, or type <b>skip</b>.",
+                _ui(_lang(context), "invalid_end_onboarding"),
                 reply_markup=_date_kb(_lang(context)),
             )
             return O_END
         end = dt.date.fromisoformat(parsed)
         start = dt.date.fromisoformat(context.user_data["period_start"])
         if end < start:
-            await _send(update, context, "End date can't be before start date.\n\n4/6 - Try again.", reply_markup=_date_kb(_lang(context)))
+            await _send(update, context, _ui(_lang(context), "end_before_start_onboarding"), reply_markup=_date_kb(_lang(context)))
             return O_END
         context.user_data["period_end"] = parsed
     await _send(update, context, _lt(context, "cycle"))
@@ -1720,7 +1819,7 @@ async def o_cycle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return O_CYCLE
     t = _norm(update.message.text)
     if not t.isdigit():
-        await _send(update, context, "Enter a number 21-35.\n\n5/6 - Cycle length in days (21-35).")
+        await _send(update, context, _ui(_lang(context), "enter_cycle_number"))
         return O_CYCLE
     n = int(t)
     if n < 21 or n > 35:
@@ -1744,7 +1843,7 @@ async def o_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _send(
             update,
             context,
-            "Time format should be <b>HH:MM</b> or choose a preset like <b>Morning</b> or <b>After work</b>.",
+            _ui(_lang(context), "invalid_time"),
             reply_markup=_time_kb(_lang(context)),
         )
         return O_TIME
@@ -1839,7 +1938,8 @@ async def cmd_pause(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await start_onboarding(update, context)
     profile.paused = True
     await db_upsert_user(profile)
-    await _send(update, context, "⏸ Paused daily pings.\n\n" + await render_today(profile))
+    _sync_locale(context, profile)
+    await _send(update, context, _ui(profile.locale, "paused_pings") + "\n\n" + await render_today(profile))
 
 async def cmd_resume(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profile = await db_fetch_user(update.effective_chat.id)
@@ -1847,35 +1947,38 @@ async def cmd_resume(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await start_onboarding(update, context)
     profile.paused = False
     await db_upsert_user(profile)
-    await _send(update, context, "▶️ Resumed daily pings.\n\n" + await render_today(profile))
+    _sync_locale(context, profile)
+    await _send(update, context, _ui(profile.locale, "resumed_pings") + "\n\n" + await render_today(profile))
 
 async def cmd_set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profile = await db_fetch_user(update.effective_chat.id)
     if not profile:
         return await start_onboarding(update, context)
+    _sync_locale(context, profile)
     parts = (update.message.text or "").split()
     if len(parts) < 2:
-        return await _send(update, context, "Usage: /set_time HH:MM\nExamples: /set_time 08:00, /set_time evening")
+        return await _send(update, context, _ui(profile.locale, "usage_set_time"))
     parsed = _parse_notify_input(" ".join(parts[1:]))
     if not parsed:
-        return await _send(update, context, "Usage: /set_time HH:MM\nExamples: /set_time 08:00, /set_time evening")
+        return await _send(update, context, _ui(profile.locale, "usage_set_time"))
     profile.notify_time = parsed
     await db_upsert_user(profile)
-    await _send(update, context, "✅ Updated.\n\n" + await render_today(profile))
+    await _send(update, context, _ui(profile.locale, "updated") + "\n\n" + await render_today(profile))
 
 async def cmd_set_cycle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profile = await db_fetch_user(update.effective_chat.id)
     if not profile:
         return await start_onboarding(update, context)
+    _sync_locale(context, profile)
     parts = (update.message.text or "").split()
     if len(parts) != 2 or not parts[1].isdigit():
-        return await _send(update, context, "Usage: /set_cycle 21-35")
+        return await _send(update, context, _ui(profile.locale, "usage_set_cycle"))
     n = int(parts[1])
     if n < 21 or n > 35:
-        return await _send(update, context, "Cycle length should be 21-35.")
+        return await _send(update, context, _ui(profile.locale, "cycle_length_invalid"))
     profile.cycle_length = n
     await db_upsert_user(profile)
-    await _send(update, context, "✅ Updated.\n\n" + await render_today(profile))
+    await _send(update, context, _ui(profile.locale, "updated") + "\n\n" + await render_today(profile))
 
 
 async def cmd_set_lang(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1886,9 +1989,9 @@ async def cmd_set_lang(update: Update, context: ContextTypes.DEFAULT_TYPE):
     parts = (update.message.text or "").split()
     if len(parts) == 1:
         context.user_data["awaiting_lang_select"] = True
-        return await _send(update, context, "Choose a language.", reply_markup=LANG_KB)
+        return await _send(update, context, _ui(profile.locale, "choose_language"), reply_markup=LANG_KB)
     if len(parts) != 2 or parts[1].lower() not in {"en", "sv", "ru"}:
-        return await _send(update, context, "Usage: /set_lang en|sv|ru", reply_markup=LANG_KB)
+        return await _send(update, context, _ui(profile.locale, "usage_set_lang"), reply_markup=LANG_KB)
     profile.locale = parts[1].lower()
     await db_upsert_user(profile)
     context.user_data["awaiting_lang_select"] = False
@@ -1901,7 +2004,7 @@ async def choose_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await start_onboarding(update, context)
     _sync_locale(context, profile)
     context.user_data["awaiting_lang_select"] = True
-    await _send(update, context, "Choose a language.", reply_markup=LANG_KB)
+    await _send(update, context, _ui(profile.locale, "choose_language"), reply_markup=LANG_KB)
 
 
 async def apply_language_choice(update: Update, context: ContextTypes.DEFAULT_TYPE, locale: str):
@@ -1932,7 +2035,7 @@ async def _save_period_update(update: Update, context: ContextTypes.DEFAULT_TYPE
     await _send(
         update,
         context,
-        "✅ Period updated and added to history.\n\n"
+        _ui(profile.locale, "period_saved") + "\n\n"
         + await render_today(profile),
     )
     return ConversationHandler.END
@@ -1942,23 +2045,24 @@ async def cmd_update_period(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profile = await db_fetch_user(update.effective_chat.id)
     if not profile:
         return await start_onboarding(update, context)
+    _sync_locale(context, profile)
     parts = (update.message.text or "").split()
     if len(parts) in (2, 3):
         start_s = _parse_flexible_date_input(parts[1], tz_name=profile.tz, allow_without_year=True)
         end_s = _parse_flexible_date_input(parts[2], tz_name=profile.tz, allow_without_year=True) if len(parts) == 3 else None
         if not start_s or (len(parts) == 3 and not end_s):
-            return await _send(update, context, "Dates can be short.\nExamples: /update_period 5.4 9.4 or /update_period 2026-04-05")
+            return await _send(update, context, _ui(profile.locale, "usage_dates_short"))
         s = dt.date.fromisoformat(start_s)
         if end_s:
             e = dt.date.fromisoformat(end_s)
             if e < s:
-                return await _send(update, context, "END cannot be before START.")
+                return await _send(update, context, _ui(profile.locale, "end_before_start_short"))
         return await _save_period_update(update, context, start_s, end_s)
 
     await _send(
         update,
         context,
-        "Update period.\n\nStep 1/2 - Send the <b>start date</b>.\nExamples: <b>5.4</b>, <b>05/04</b>, <b>2026-04-05</b>, or use <b>📅 Today</b>/<b>📅 Yesterday</b>.",
+        _ui(profile.locale, "update_period_intro"),
         reply_markup=_date_kb(profile.locale),
     )
     return U_START
@@ -1971,17 +2075,17 @@ async def u_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     t = _norm(update.message.text)
     _sync_locale(context, profile)
     if _is_menu_press(t):
-        await _send(update, context, "Step 1/2 - Send the <b>start date</b>.", reply_markup=_date_kb(profile.locale))
+        await _send(update, context, _ui(profile.locale, "update_period_step1"), reply_markup=_date_kb(profile.locale))
         return U_START
     parsed = _parse_flexible_date_input(t, tz_name=profile.tz, allow_without_year=True)
     if not parsed:
-        await _send(update, context, "Invalid date.\n\nTry <b>5.4</b>, <b>05/04</b>, <b>2026-04-05</b>, or quick date buttons.", reply_markup=_date_kb(profile.locale))
+        await _send(update, context, _ui(profile.locale, "invalid_date_start"), reply_markup=_date_kb(profile.locale))
         return U_START
     context.user_data["period_update_start"] = parsed
     await _send(
         update,
         context,
-        "Step 2/2 - Send the <b>end date</b>, or type <b>skip</b> if you only want to record the start.",
+        _ui(profile.locale, "update_period_step2"),
         reply_markup=_date_kb(profile.locale),
     )
     return U_END
@@ -1997,16 +2101,16 @@ async def u_end(update: Update, context: ContextTypes.DEFAULT_TYPE):
     _sync_locale(context, profile)
     t = _norm(update.message.text).lower()
     if _is_menu_press(update.message.text):
-        await _send(update, context, "Step 2/2 - Send the <b>end date</b>, or type <b>skip</b>.", reply_markup=_date_kb(profile.locale))
+        await _send(update, context, _ui(profile.locale, "update_period_step2_short"), reply_markup=_date_kb(profile.locale))
         return U_END
     if t == "skip":
         return await _save_period_update(update, context, start_s, None)
     end_s = _parse_flexible_date_input(t, tz_name=profile.tz, allow_without_year=True)
     if not end_s:
-        await _send(update, context, "Invalid date.\n\nTry <b>9.4</b>, <b>09/04</b>, <b>2026-04-09</b>, or type <b>skip</b>.", reply_markup=_date_kb(profile.locale))
+        await _send(update, context, _ui(profile.locale, "invalid_date_end"), reply_markup=_date_kb(profile.locale))
         return U_END
     if dt.date.fromisoformat(end_s) < dt.date.fromisoformat(start_s):
-        await _send(update, context, "End date cannot be before start date. Try again or type <b>skip</b>.", reply_markup=_date_kb(profile.locale))
+        await _send(update, context, _ui(profile.locale, "period_end_before_start"), reply_markup=_date_kb(profile.locale))
         return U_END
     return await _save_period_update(update, context, start_s, end_s)
 
@@ -2033,7 +2137,7 @@ async def _record_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE, h
         context,
         (
             f"{'👍' if helpful else '👎'} {_feedback_ack(helpful, snap['phase'], snap['stats'], profile.locale)}\n\n"
-            f"Today's cue saved as: <b>{cue['headline']}</b>\n"
+            f"{_ui(profile.locale, 'cue_saved', headline=cue['headline'])}\n"
             f"Day <b>{snap['day']}/{profile.cycle_length}</b> · "
             f"<b>{_phase_name(snap['phase'], profile.locale)}</b> {PHASE_EMOJI[snap['phase']]}"
         ),
@@ -2070,7 +2174,7 @@ async def on_menu_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await cmd_helpful(update, context)
     if key == BTN_NOT_HELPFUL:
         return await cmd_not_helpful(update, context)
-    await _send(update, context, "Use the menu buttons, or type /start.")
+    await _send(update, context, _ui(_lang(context), "use_menu"))
 
 # ----------------------------
 # Notifications loop (no job-queue)

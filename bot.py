@@ -186,6 +186,7 @@ async def db_init():
     DB_POOL = await asyncpg.create_pool(dsn=dsn, min_size=1, max_size=3)
     async with DB_POOL.acquire() as conn:
         await conn.execute(SCHEMA_SQL)
+        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS locale TEXT NOT NULL DEFAULT 'en'")
     LOG.info("✅ DB connected + schema ensured")
 
 async def db_fetch_user(chat_id: int) -> Optional[UserProfile]:
@@ -203,7 +204,7 @@ async def db_fetch_user(chat_id: int) -> Optional[UserProfile]:
             cycle_length=int(row["cycle_length"]),
             notify_time=row["notify_time"],
             tz=row["tz"],
-            locale=row["locale"] or "en",
+            locale=(row["locale"] if "locale" in row else "en") or "en",
             paused=bool(row["paused"]),
         )
 

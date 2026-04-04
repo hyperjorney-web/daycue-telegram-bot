@@ -1408,19 +1408,13 @@ def _numerology_overlay(profile: UserProfile, locale: str) -> Optional[Dict[str,
 def _apply_zodiac_to_cue(cue: Dict[str, str], zodiac: Optional[Dict[str, str]]) -> Dict[str, str]:
     if not zodiac:
         return cue
-    merged = dict(cue)
-    merged["do"] = f"{merged['do']} {zodiac['do']}"
-    merged["avoid"] = f"{merged['avoid']} {zodiac['avoid']}"
-    return merged
+    return dict(cue)
 
 
 def _apply_numerology_to_cue(cue: Dict[str, str], numerology: Optional[Dict[str, str]]) -> Dict[str, str]:
     if not numerology:
         return cue
-    merged = dict(cue)
-    merged["do"] = f"{merged['do']} {numerology['do']}"
-    merged["avoid"] = f"{merged['avoid']} {numerology['avoid']}"
-    return merged
+    return dict(cue)
 
 def _arrow(cur: int, prev: int) -> str:
     if cur > prev: return "↗"
@@ -1486,7 +1480,7 @@ def _phase_summary_text(phase: str, stats: Dict[str, int], locale: str = "en") -
     if phase == "follicular":
         return _locale_pack(locale, "Energy is building. Lighter plans, movement, and positive momentum usually work well.", "Energien byggs upp. Lattare planer, rorelse och positivt momentum fungerar ofta bra.", "Энергия растет. Обычно хорошо работают более легкие планы, движение и позитивный импульс.")
     if phase == "ovulatory":
-        return _locale_pack(locale, "Connection is easier today. Confidence, warmth, and shared time tend to land well.", "Kontakt ar enklare idag. Trygghet, varme och gemensam tid brukar landa bra.", "Сегодня легче идти в близость. Уверенность, тепло и совместное время обычно заходят хорошо.")
+        return _locale_pack(locale, "Energy and openness are higher today. Good timing for initiative, playfulness, and quality time together.", "Energi och oppenhet ar hogre idag. Bra timing for initiativ, lekfullhet och kvalitetstid tillsammans.", "Сегодня выше энергия и открытость. Хороший момент для инициативы, легкости и качественного времени вместе.")
     if stats["irritability"] >= 4:
         return _locale_pack(locale, "Emotional load may be higher today. Keep things low-pressure, steady, and practical.", "Den emotionella belastningen kan vara hogre idag. Hall allt mindre pressat, stabilt och praktiskt.", "Эмоциональная нагрузка сегодня может быть выше. Держи всё менее напряженным, стабильным и практичным.")
     return _locale_pack(locale, "A steadier, lower-friction day. Predictability and gentle support will help more than pressure.", "En stadigare dag med mindre friktion. Forutsagbarhet och mjukt stod hjalper mer an press.", "Более ровный день с меньшим трением. Предсказуемость и мягкая поддержка помогут больше, чем давление.")
@@ -1688,24 +1682,24 @@ def _cue_pack(phase: str, day: int, stats: Dict[str, int], locale: str = "en") -
     elif phase == "ovulatory":
         pack = {
             "headline": _pick_by_day(day, [
-                _locale_pack(locale, "Lean into connection", "Luta dig in i kontakt", "Опирайся на близость"),
-                _locale_pack(locale, "Show up with warmth", "Visa varme", "Будь теплее"),
-                _locale_pack(locale, "Make space for closeness", "Skapa plats for narhet", "Создай пространство для близости"),
+                _locale_pack(locale, "Use the extra energy", "Anvand den extra energin", "Используй эту дополнительную энергию"),
+                _locale_pack(locale, "Take the lead today", "Ta initiativ idag", "Возьми инициативу сегодня"),
+                _locale_pack(locale, "Make it feel alive", "Gor dagen mer levande", "Сделай день более живым"),
             ]),
             "do": _pick_by_day(day, [
-                _locale_pack(locale, "Plan a date, a thoughtful compliment, or quality time with your full attention.", "Planera en dejt, en omtanksam komplimang eller kvalitetstid med full narvaro.", "Запланируй свидание, теплый комплимент или качественное время вместе с полным вниманием."),
-                _locale_pack(locale, "Be present, confident, and generous with affection or appreciation.", "Var narvarande, trygg och generos med omtanke eller uppskattning.", "Будь включенным, уверенным и щедрым на тепло и признание."),
-                _locale_pack(locale, "Use today for shared time, open conversation, or something a bit special.", "Anvand dagen for gemensam tid, oppen konversation eller nagot lite extra.", "Используй этот день для совместного времени, открытого разговора или чего-то особенного."),
+                _locale_pack(locale, "Suggest something real: a date, a walk, a drive, or a plan that gets you both out of routine.", "Foresla nagot konkret: en dejt, en promenad, en biltur eller en plan som bryter rutinen.", "Предложи что-то реальное: свидание, прогулку, поездку или план, который вытащит вас из рутины."),
+                _locale_pack(locale, "Use the good mood for movement and connection, not just logistics and chores.", "Anvand det bra laget till rorelse och kontakt, inte bara logistik och sysslor.", "Используй хорошее состояние для движения и контакта, а не только для логистики и дел."),
+                _locale_pack(locale, "Bring a bit more flirt, humor, or confidence than on an ordinary day.", "Lag in lite mer flirt, humor eller sjalvsakerhet an en vanlig dag.", "Добавь чуть больше флирта, юмора или уверенности, чем в обычный день."),
             ]),
             "say": _pick_by_day(day, [
-                _locale_pack(locale, "You look amazing today.", "Du ser fantastisk ut idag.", "Ты сегодня выглядишь потрясающе."),
-                _locale_pack(locale, "Let's make time for us later.", "Lat oss hitta tid for oss senare.", "Давай позже выделим время для нас."),
-                _locale_pack(locale, "I love being around you when things feel this easy.", "Jag alskar att vara nara dig nar allt kanns sa har latt.", "Мне очень нравится быть рядом с тобой, когда всё так легко ощущается."),
+                _locale_pack(locale, "You seem full of life today. Let's do something good with it.", "Du verkar full av liv idag. Lat oss gora nagot bra av det.", "Похоже, сегодня в тебе много жизни. Давай это хорошо используем."),
+                _locale_pack(locale, "You look incredible today. Let's not waste the evening at home.", "Du ser otrolig ut idag. Lat oss inte slosa bort kvallen hemma.", "Ты сегодня выглядишь невероятно. Давай не будем тратить вечер дома впустую."),
+                _locale_pack(locale, "Feels like a really good day for us to do something fun together.", "Det kanns som en riktigt bra dag for oss att gora nagot kul tillsammans.", "Похоже, это очень хороший день, чтобы нам сделать что-то классное вместе."),
             ]),
             "avoid": _pick_by_day(day, [
-                _locale_pack(locale, "Avoid being distracted or half-present if she's clearly open to connection.", "Var inte distraherad eller halvnarvarande om hon tydligt ar oppen for kontakt.", "Не будь отвлеченным или наполовину включенным, если она явно открыта к близости."),
-                _locale_pack(locale, "Don't waste a good connection window on logistical stress.", "Slosa inte bort ett bra kontaktfonster pa logistisk stress.", "Не трать хорошее окно близости на стресс из-за бытовых дел."),
-                _locale_pack(locale, "Avoid coldness when warmth would go a long way today.", "Undvik kyla nar varme skulle gora stor skillnad idag.", "Избегай холодности, когда сегодня тепло даст гораздо больше."),
+                _locale_pack(locale, "Don't spend the whole day only on chores, planning, or half-attention.", "Lagg inte hela dagen bara pa sysslor, planering eller halv uppmarksamhet.", "Не трать весь день только на дела, планирование и полу-вовлеченность."),
+                _locale_pack(locale, "Don't miss the window by being passive if the mood is clearly open and bright.", "Missa inte fonstret genom att vara passiv om stamningen ar tydligt oppen och ljus.", "Не упусти окно, если настроение явно открытое и живое."),
+                _locale_pack(locale, "Avoid acting colder than the day actually feels.", "Undvik att vara kallare an vad dagen faktiskt ber om.", "Не веди себя холоднее, чем этого требует сам день."),
             ]),
         }
     else:
@@ -1796,6 +1790,16 @@ def _extra_support_lines(phase: str, stats: Dict[str, int], hormones: Dict[str, 
     }
 
 
+def _one_extra_support_line(phase: str, stats: Dict[str, int], support: Dict[str, str]) -> str:
+    if phase == "ovulatory" or (stats["connection_openness"] >= 4 and stats["social"] >= 4):
+        return support["relationship"]
+    if stats["energy"] <= 2 or stats["physical_comfort"] <= 2:
+        return support["body"]
+    if stats["irritability"] >= 4 or stats["focus"] <= 2 or stats["need_for_space"] >= 4:
+        return support["regulate"]
+    return support["relationship"]
+
+
 def _cycle_snapshot(profile: UserProfile) -> Dict[str, Any]:
     today = _today_in_tz(profile.tz)
     start = dt.date.fromisoformat(profile.period_start)
@@ -1871,18 +1875,7 @@ async def render_today(profile: UserProfile) -> str:
         numerology,
     )
     support = _extra_support_lines(phase, now_stats, hormones, day, locale)
-    why_lines = [
-        f"• {_ui(locale, 'why_phase')} {_phase_summary_text(phase, now_stats, locale).lower()}",
-    ]
-    if zodiac:
-        why_lines.append(
-            f"• {_ui(locale, 'why_zodiac')} {zodiac['tone'].rstrip('.').lower()}"
-        )
-    if numerology:
-        why_lines.append(
-            f"• {_ui(locale, 'why_numerology')} {numerology['tone'].rstrip('.').lower()}"
-        )
-    why_block = f"<b>{_ui(locale, 'why_this_fits')}</b>\n" + "\n".join(why_lines) + "\n\n"
+    extra_line = _one_extra_support_line(phase, now_stats, support)
 
     def stat_line(label: str, emoji: str, key: str):
         return f"{emoji} {label}: {_bar(now_stats[key])} {_arrow(now_stats[key], prev_stats[key])}"
@@ -1899,7 +1892,6 @@ async def render_today(profile: UserProfile) -> str:
         f"<b>{_ui(locale, 'today_for', name=profile.partner_name)}</b>\n"
         f"{_ui(locale, 'day_short')} <b>{day}/{profile.cycle_length}</b> · <b>{_phase_name(phase, locale)}</b> {PHASE_EMOJI[phase]}\n"
         f"{_phase_summary_text(phase, now_stats, locale)}\n\n"
-        f"{why_block}"
         f"<b>{_ui(locale, 'todays_cue')}</b>\n"
         f"<b>{cue['headline']}</b>\n"
         f"{cue['do']}\n\n"
@@ -1908,9 +1900,7 @@ async def render_today(profile: UserProfile) -> str:
         f"<b>{_ui(locale, 'avoid')}</b>\n"
         f"{cue['avoid']}\n\n"
         f"<b>{_ui(locale, 'more_help')}</b>\n"
-        f"• {_ui(locale, 'body')}: {support['body']}\n"
-        f"• {_ui(locale, 'relationship')}: {support['relationship']}\n"
-        f"• {_ui(locale, 'regulation')}: {support['regulate']}\n\n"
+        f"• {extra_line}\n\n"
         f"<b>{_ui(locale, 'signals_today')}</b>\n"
         f"⚡ {_ui(locale, 'energy')}: <b>{_level_word(now_stats['energy'], locale=locale)}</b> {_bar(now_stats['energy'])}\n"
         f"🎭 {_ui(locale, 'mood')}: <b>{_level_word(now_stats['mood'], locale=locale)}</b> {_bar(now_stats['mood'])}\n"

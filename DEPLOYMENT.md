@@ -106,8 +106,14 @@ If the bot seems stale or the machine is stopped:
 ```bash
 export PATH="$HOME/.fly/bin:$PATH"
 flyctl machines list -a daycue-telegram-bot
-flyctl machines restart -a daycue-telegram-bot
+flyctl machines restart MACHINE_ID -a daycue-telegram-bot
 ```
+
+Note:
+
+- this app has occasionally ended a rolling deploy with the new machine in `stopped`
+- if that happens, restart the exact machine id shown by `flyctl machines list`
+- then verify `flyctl status` shows `started`
 
 ## Status Checks
 
@@ -218,7 +224,8 @@ Before shipping:
 5. push to `main`
 6. confirm GitHub Action passes or run manual `flyctl deploy`
 7. confirm `flyctl status`
-8. test the bot in Telegram with `/start`
+8. if Fly shows `stopped`, restart the machine by id
+9. test the bot in Telegram with `/start`
 
 ## Telegram Functional Check
 

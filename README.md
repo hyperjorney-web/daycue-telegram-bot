@@ -24,6 +24,13 @@ Daycue is a Telegram bot for cycle-aware relationship support. It helps a partne
 - [requirements.txt](/Users/zkblook/Documents/Playground/daycue/requirements.txt): Python deps
 - [.github/workflows/fly-deploy.yml](/Users/zkblook/Documents/Playground/daycue/.github/workflows/fly-deploy.yml): GitHub Actions auto-deploy workflow
 - [DEPLOYMENT.md](/Users/zkblook/Documents/Playground/daycue/DEPLOYMENT.md): runbook for deploys, secrets, checks, and troubleshooting
+- [PRODUCT.md](/Users/zkblook/Documents/Playground/daycue/PRODUCT.md): product thesis, MVP framing, and output rules
+- [PERSONALIZATION_SYSTEM.md](/Users/zkblook/Documents/Playground/daycue/PERSONALIZATION_SYSTEM.md): layered personalization model and feedback priority
+- [CONTENT_SYSTEM.md](/Users/zkblook/Documents/Playground/daycue/CONTENT_SYSTEM.md): voice system, content bank strategy, and writing rules
+- [PRIVACY.md](/Users/zkblook/Documents/Playground/daycue/PRIVACY.md): privacy-first product rules and data minimization
+- [ROADMAP.md](/Users/zkblook/Documents/Playground/daycue/ROADMAP.md): current gaps and next milestones
+- [CHANGELOG.md](/Users/zkblook/Documents/Playground/daycue/CHANGELOG.md): high-level product and system changes over time
+- [HANDOFF.md](/Users/zkblook/Documents/Playground/daycue/HANDOFF.md): next-agent orientation and operational notes
 
 ## Runtime Requirements
 
@@ -69,10 +76,12 @@ The exact commands and verification steps are documented in [DEPLOYMENT.md](/Use
 If you return to this project later, start here:
 
 1. Read [DEPLOYMENT.md](/Users/zkblook/Documents/Playground/daycue/DEPLOYMENT.md)
-2. Run `git status`
-3. Compile-check `bot.py`
-4. If shipping, prefer pushing to `main` and letting GitHub Actions deploy
-5. If Actions fails, use the manual Fly deploy path in the runbook
+2. Read [HANDOFF.md](/Users/zkblook/Documents/Playground/daycue/HANDOFF.md)
+3. Read [PRODUCT.md](/Users/zkblook/Documents/Playground/daycue/PRODUCT.md) and [CONTENT_SYSTEM.md](/Users/zkblook/Documents/Playground/daycue/CONTENT_SYSTEM.md)
+4. Run `git status`
+5. Compile-check `bot.py`
+6. If shipping, prefer pushing to `main` and letting GitHub Actions deploy
+7. If Actions fails, use the manual Fly deploy path in the runbook
 
 ## Security
 

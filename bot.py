@@ -124,6 +124,28 @@ LANG_SV = "🇸🇪 Svenska"
 LANG_RU = "🇷🇺 Русский"
 LANG_MAP = {LANG_EN: "en", LANG_SV: "sv", LANG_RU: "ru"}
 
+PREF_SPACE = "space"
+PREF_WARMTH = "warmth"
+PREF_PRACTICAL = "practical_help"
+PREF_TALKING = "talking"
+
+ANNOY_QUESTIONS = "too_many_questions"
+ANNOY_PRESSURE = "pressure"
+ANNOY_PASSIVITY = "passivity"
+ANNOY_COLDNESS = "coldness"
+
+STYLE_CALM = "calm"
+STYLE_EXPRESSIVE = "expressive"
+STYLE_PRIVATE = "private"
+STYLE_SOCIAL = "social"
+
+REST_HOME = "home"
+REST_WALK = "walk"
+REST_CAFE = "cafe"
+REST_MOVIE = "movie"
+REST_FOOD = "food"
+REST_QUIET = "quiet"
+
 LANG_KB = ReplyKeyboardMarkup(
     [[LANG_EN, LANG_SV], [LANG_RU]],
     resize_keyboard=True,
@@ -143,6 +165,76 @@ TIME_TEXT = {
     "ru": {TIME_MORNING: "🌅 Утро (08:00)", TIME_AFTER_WORK: "💼 После работы (18:00)", TIME_EVENING: "🌙 Вечер (21:00)"},
 }
 
+PREFERENCE_LABELS = {
+    "en": {
+        PREF_SPACE: "Give more space",
+        PREF_WARMTH: "Warmth and reassurance",
+        PREF_PRACTICAL: "Practical help",
+        PREF_TALKING: "Talk it through",
+        ANNOY_QUESTIONS: "Too many questions",
+        ANNOY_PRESSURE: "Pressure",
+        ANNOY_PASSIVITY: "Passivity",
+        ANNOY_COLDNESS: "Coldness",
+        STYLE_CALM: "Calm",
+        STYLE_EXPRESSIVE: "Expressive",
+        STYLE_PRIVATE: "Private",
+        STYLE_SOCIAL: "Social",
+        REST_HOME: "Home time",
+        REST_WALK: "Walks",
+        REST_CAFE: "Cafe time",
+        REST_MOVIE: "Movie or series",
+        REST_FOOD: "Food or delivery",
+        REST_QUIET: "Quiet time",
+    },
+    "sv": {
+        PREF_SPACE: "Mer utrymme",
+        PREF_WARMTH: "Varme och trygghet",
+        PREF_PRACTICAL: "Praktisk hjalp",
+        PREF_TALKING: "Prata igenom det",
+        ANNOY_QUESTIONS: "For manga fragor",
+        ANNOY_PRESSURE: "Press",
+        ANNOY_PASSIVITY: "Passivitet",
+        ANNOY_COLDNESS: "Kyla",
+        STYLE_CALM: "Lugn",
+        STYLE_EXPRESSIVE: "Uttrycksfull",
+        STYLE_PRIVATE: "Privat",
+        STYLE_SOCIAL: "Social",
+        REST_HOME: "Hemma",
+        REST_WALK: "Promenader",
+        REST_CAFE: "Cafe",
+        REST_MOVIE: "Film eller serie",
+        REST_FOOD: "Mat eller leverans",
+        REST_QUIET: "Lugn och ro",
+    },
+    "ru": {
+        PREF_SPACE: "Дать больше пространства",
+        PREF_WARMTH: "Тепло и reassurance",
+        PREF_PRACTICAL: "Практическая помощь",
+        PREF_TALKING: "Поговорить",
+        ANNOY_QUESTIONS: "Слишком много вопросов",
+        ANNOY_PRESSURE: "Давление",
+        ANNOY_PASSIVITY: "Пассивность",
+        ANNOY_COLDNESS: "Холодность",
+        STYLE_CALM: "Спокойная",
+        STYLE_EXPRESSIVE: "Эмоциональная",
+        STYLE_PRIVATE: "Закрытая",
+        STYLE_SOCIAL: "Социальная",
+        REST_HOME: "Побыть дома",
+        REST_WALK: "Прогулки",
+        REST_CAFE: "Кафе",
+        REST_MOVIE: "Фильм или сериал",
+        REST_FOOD: "Еда или доставка",
+        REST_QUIET: "Тишина",
+    },
+}
+
+PROFILE_OPTION_GROUPS = {
+    "support": [PREF_SPACE, PREF_WARMTH, PREF_PRACTICAL, PREF_TALKING],
+    "annoys": [ANNOY_QUESTIONS, ANNOY_PRESSURE, ANNOY_PASSIVITY, ANNOY_COLDNESS],
+    "style": [STYLE_CALM, STYLE_EXPRESSIVE, STYLE_PRIVATE, STYLE_SOCIAL],
+    "rest": [REST_HOME, REST_WALK, REST_CAFE, REST_MOVIE, REST_FOOD, REST_QUIET],
+}
+
 
 def _date_btn(locale: str, key: str) -> str:
     return DATE_TEXT.get(locale, DATE_TEXT["en"]).get(key, DATE_TEXT["en"][key])
@@ -150,6 +242,26 @@ def _date_btn(locale: str, key: str) -> str:
 
 def _time_btn(locale: str, key: str) -> str:
     return TIME_TEXT.get(locale, TIME_TEXT["en"]).get(key, TIME_TEXT["en"][key])
+
+
+def _pref_label(locale: str, key: Optional[str]) -> str:
+    if not key:
+        return _ui(locale, "unknown")
+    return PREFERENCE_LABELS.get(locale, PREFERENCE_LABELS["en"]).get(key, key)
+
+
+def _profile_kb(locale: str, group: str, include_skip: bool = False) -> ReplyKeyboardMarkup:
+    labels = [_pref_label(locale, key) for key in PROFILE_OPTION_GROUPS[group]]
+    rows = [[label] for label in labels]
+    if include_skip:
+        rows.append([_ui(locale, "skip_button")])
+    rows.append([_btn(locale, BTN_SETTINGS), _btn(locale, BTN_TODAY)])
+    return ReplyKeyboardMarkup(
+        rows,
+        resize_keyboard=True,
+        one_time_keyboard=False,
+        input_field_placeholder=_ui(locale, "choose_option"),
+    )
 
 def _date_kb(locale: str) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
@@ -182,6 +294,12 @@ class UserProfile:
     paused: bool = False
     sun_sign: Optional[str] = None
     life_path_number: Optional[int] = None
+    support_preference: Optional[str] = None
+    what_annoys: Optional[str] = None
+    person_style: Optional[str] = None
+    rest_style: Optional[str] = None
+    optional_note: Optional[str] = None
+    city_name: Optional[str] = None
 
 # ----------------------------
 # DB layer (asyncpg) - matches your Supabase tables
@@ -195,6 +313,12 @@ CREATE TABLE IF NOT EXISTS users (
   partner_dob DATE NULL,
   sun_sign TEXT NULL,
   life_path_number INT NULL,
+  support_preference TEXT NULL,
+  what_annoys TEXT NULL,
+  person_style TEXT NULL,
+  rest_style TEXT NULL,
+  optional_note TEXT NULL,
+  city_name TEXT NULL,
   period_start DATE NOT NULL,
   period_end DATE NULL,
   cycle_length INT NOT NULL,
@@ -221,6 +345,7 @@ CREATE TABLE IF NOT EXISTS daily_feedback (
   cycle_day INT NOT NULL,
   phase TEXT NOT NULL,
   helpful BOOLEAN NOT NULL,
+  feedback_reason TEXT NULL,
   cue_headline TEXT NOT NULL,
   sun_sign TEXT NULL,
   life_path_number INT NULL,
@@ -259,8 +384,15 @@ async def db_init():
         await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS locale TEXT NOT NULL DEFAULT 'en'")
         await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS sun_sign TEXT")
         await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS life_path_number INT")
+        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS support_preference TEXT")
+        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS what_annoys TEXT")
+        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS person_style TEXT")
+        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS rest_style TEXT")
+        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS optional_note TEXT")
+        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS city_name TEXT")
         await conn.execute("ALTER TABLE daily_feedback ADD COLUMN IF NOT EXISTS sun_sign TEXT")
         await conn.execute("ALTER TABLE daily_feedback ADD COLUMN IF NOT EXISTS life_path_number INT")
+        await conn.execute("ALTER TABLE daily_feedback ADD COLUMN IF NOT EXISTS feedback_reason TEXT")
     LOG.info("✅ DB connected + schema ensured")
 
 async def db_fetch_user(chat_id: int) -> Optional[UserProfile]:
@@ -283,6 +415,12 @@ async def db_fetch_user(chat_id: int) -> Optional[UserProfile]:
             partner_dob=partner_dob,
             sun_sign=sun_sign,
             life_path_number=life_path_number,
+            support_preference=row["support_preference"] if "support_preference" in row else None,
+            what_annoys=row["what_annoys"] if "what_annoys" in row else None,
+            person_style=row["person_style"] if "person_style" in row else None,
+            rest_style=row["rest_style"] if "rest_style" in row else None,
+            optional_note=row["optional_note"] if "optional_note" in row else None,
+            city_name=row["city_name"] if "city_name" in row else None,
             period_start=row["period_start"].isoformat(),
             period_end=row["period_end"].isoformat() if row["period_end"] else None,
             cycle_length=int(row["cycle_length"]),
@@ -303,13 +441,19 @@ async def db_upsert_user(p: UserProfile) -> None:
     async with DB_POOL.acquire() as conn:
         await conn.execute(
             """
-            INSERT INTO users(chat_id, partner_name, partner_dob, sun_sign, life_path_number, period_start, period_end, cycle_length, notify_time, tz, locale, paused)
-            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+            INSERT INTO users(chat_id, partner_name, partner_dob, sun_sign, life_path_number, support_preference, what_annoys, person_style, rest_style, optional_note, city_name, period_start, period_end, cycle_length, notify_time, tz, locale, paused)
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
             ON CONFLICT(chat_id) DO UPDATE SET
               partner_name=EXCLUDED.partner_name,
               partner_dob=EXCLUDED.partner_dob,
               sun_sign=EXCLUDED.sun_sign,
               life_path_number=EXCLUDED.life_path_number,
+              support_preference=EXCLUDED.support_preference,
+              what_annoys=EXCLUDED.what_annoys,
+              person_style=EXCLUDED.person_style,
+              rest_style=EXCLUDED.rest_style,
+              optional_note=EXCLUDED.optional_note,
+              city_name=EXCLUDED.city_name,
               period_start=EXCLUDED.period_start,
               period_end=EXCLUDED.period_end,
               cycle_length=EXCLUDED.cycle_length,
@@ -324,6 +468,12 @@ async def db_upsert_user(p: UserProfile) -> None:
             dt.date.fromisoformat(p.partner_dob) if p.partner_dob else None,
             p.sun_sign,
             p.life_path_number,
+            p.support_preference,
+            p.what_annoys,
+            p.person_style,
+            p.rest_style,
+            p.optional_note,
+            p.city_name,
             dt.date.fromisoformat(p.period_start),
             dt.date.fromisoformat(p.period_end) if p.period_end else None,
             int(p.cycle_length),
@@ -350,6 +500,7 @@ async def db_upsert_feedback(
     cycle_day: int,
     phase: str,
     helpful: bool,
+    feedback_reason: Optional[str],
     cue_headline: str,
     sun_sign: Optional[str],
     life_path_number: Optional[int],
@@ -360,14 +511,15 @@ async def db_upsert_feedback(
         await conn.execute(
             """
             INSERT INTO daily_feedback(
-              chat_id, cue_date, cycle_day, phase, helpful, cue_headline,
+              chat_id, cue_date, cycle_day, phase, helpful, feedback_reason, cue_headline,
               sun_sign, life_path_number, energy, mood, irritability, connection_openness
             )
-            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
             ON CONFLICT(chat_id, cue_date) DO UPDATE SET
               cycle_day=EXCLUDED.cycle_day,
               phase=EXCLUDED.phase,
               helpful=EXCLUDED.helpful,
+              feedback_reason=EXCLUDED.feedback_reason,
               cue_headline=EXCLUDED.cue_headline,
               sun_sign=EXCLUDED.sun_sign,
               life_path_number=EXCLUDED.life_path_number,
@@ -382,6 +534,7 @@ async def db_upsert_feedback(
             cycle_day,
             phase,
             helpful,
+            feedback_reason,
             cue_headline,
             sun_sign,
             life_path_number,
@@ -537,6 +690,7 @@ UI_TEXT = {
         "settings": "Settings",
         "partner": "Partner",
         "name": "Name",
+        "nickname": "Nickname",
         "language": "Language",
         "sun_sign": "Sun sign",
         "life_path": "Life path",
@@ -559,6 +713,25 @@ UI_TEXT = {
         "quick_signal_check": "Quick signal check",
         "recent_period_history": "Recent period history",
         "no_history": "• No period history yet.",
+        "personalization": "Personalization",
+        "support_preference": "Usually helps most",
+        "what_annoys": "Usually annoys more",
+        "person_style": "Feels more like her",
+        "rest_style": "Best reset",
+        "city_name": "City",
+        "optional_note": "Extra note",
+        "profile_empty": "Not set yet",
+        "profile_hint": "Use <b>/profile</b> to set a lightweight, privacy-safe preference profile.",
+        "profile_intro": "Let's tune the advice a bit better.\n\nAnswer with the closest option each time. No real names or sensitive details needed.",
+        "profile_q1": "1/6 - When she has a harder day, what usually helps most?",
+        "profile_q2": "2/6 - What tends to annoy her more on a hard day?",
+        "profile_q3": "3/6 - Which overall style sounds closer to her?",
+        "profile_q4": "4/6 - What kind of reset usually lands best?",
+        "profile_q5": "5/6 - Optional city for future weather-aware ideas.\nType a city name or tap skip.",
+        "profile_q6": "6/6 - Optional note.\nWhat usually works well with her, or what should never be done?\nKeep it short, or tap skip.",
+        "profile_saved": "✅ Profile saved.",
+        "choose_option": "Choose an option",
+        "skip_button": "Skip",
         "settings_stats_hint": "Open <b>{stats}</b> or use <b>/stats</b> for the full stat breakdown, cycle path, and hormone picture.",
         "commands": "Commands",
         "today_for": "Today for {name}",
@@ -660,6 +833,7 @@ UI_TEXT = {
         "settings": "Installningar",
         "partner": "Partner",
         "name": "Namn",
+        "nickname": "Smeknamn",
         "language": "Sprak",
         "sun_sign": "Soltecken",
         "life_path": "Livsvag",
@@ -682,6 +856,25 @@ UI_TEXT = {
         "quick_signal_check": "Snabb signalcheck",
         "recent_period_history": "Senaste periodhistorik",
         "no_history": "• Ingen historik an.",
+        "personalization": "Personalisering",
+        "support_preference": "Hjalper oftast mest",
+        "what_annoys": "Brukar irritera mest",
+        "person_style": "Liknar henne mest",
+        "rest_style": "Basta aterhamtning",
+        "city_name": "Stad",
+        "optional_note": "Extra notis",
+        "profile_empty": "Inte satt an",
+        "profile_hint": "Anvand <b>/profile</b> for en latt, integritetssaker preferensprofil.",
+        "profile_intro": "Vi finjusterar raden lite mer.\n\nVälj det alternativ som ligger närmast. Inga riktiga namn eller kansliga detaljer behovs.",
+        "profile_q1": "1/6 - Nar hon har en tyngre dag, vad hjalper oftast mest?",
+        "profile_q2": "2/6 - Vad brukar irritera henne mest pa en tung dag?",
+        "profile_q3": "3/6 - Vilken overgripande stil liknar henne mest?",
+        "profile_q4": "4/6 - Vilken typ av aterhamtning landar oftast bast?",
+        "profile_q5": "5/6 - Valfri stad for framtida vaderanpassade ideer.\nSkriv stadens namn eller tryck skip.",
+        "profile_q6": "6/6 - Valfri notis.\nVad brukar fungera bra med henne, eller vad bor man aldrig gora?\nHall det kort eller tryck skip.",
+        "profile_saved": "✅ Profil sparad.",
+        "choose_option": "Valj ett alternativ",
+        "skip_button": "Skip",
         "settings_stats_hint": "Oppna <b>{stats}</b> eller anvand <b>/stats</b> for full statistik, cykelvag och hormonbild.",
         "commands": "Kommandon",
         "today_for": "Idag for {name}",
@@ -783,6 +976,7 @@ UI_TEXT = {
         "settings": "Настройки",
         "partner": "Партнер",
         "name": "Имя",
+        "nickname": "Никнейм",
         "language": "Язык",
         "sun_sign": "Знак зодиака",
         "life_path": "Число пути",
@@ -805,6 +999,25 @@ UI_TEXT = {
         "quick_signal_check": "Быстрый срез",
         "recent_period_history": "Последняя история цикла",
         "no_history": "• Истории пока нет.",
+        "personalization": "Персонализация",
+        "support_preference": "Обычно лучше помогает",
+        "what_annoys": "Чаще всего раздражает",
+        "person_style": "Больше похожа на нее",
+        "rest_style": "Лучший способ перезагрузки",
+        "city_name": "Город",
+        "optional_note": "Доп. заметка",
+        "profile_empty": "Пока не задано",
+        "profile_hint": "Используй <b>/profile</b>, чтобы задать легкий и privacy-safe профиль предпочтений.",
+        "profile_intro": "Давай чуть точнее настроим советы.\n\nВыбирай самый близкий вариант. Настоящие имена и чувствительные детали не нужны.",
+        "profile_q1": "1/6 - Когда ей тяжелее, что обычно помогает больше всего?",
+        "profile_q2": "2/6 - Что чаще всего раздражает ее в сложный день?",
+        "profile_q3": "3/6 - Какой общий стиль больше на нее похож?",
+        "profile_q4": "4/6 - Какой формат отдыха обычно лучше заходит?",
+        "profile_q5": "5/6 - Необязательный город для будущих weather-подсказок.\nВведи название города или нажми skip.",
+        "profile_q6": "6/6 - Необязательная заметка.\nЧто обычно хорошо работает с ней, или чего точно не стоит делать?\nКоротко, либо нажми skip.",
+        "profile_saved": "✅ Профиль сохранен.",
+        "choose_option": "Выбери вариант",
+        "skip_button": "Skip",
         "settings_stats_hint": "Открой <b>{stats}</b> или используй <b>/stats</b> для полного разбора статов, пути цикла и гормональной картины.",
         "commands": "Команды",
         "today_for": "Сегодня для {name}",
@@ -938,6 +1151,14 @@ def _button_key(text: str) -> Optional[str]:
         for key, label in labels.items():
             if normalized == label:
                 return key
+    return None
+
+
+def _profile_choice_key(locale: str, group: str, text: str) -> Optional[str]:
+    normalized = _norm(text)
+    for key in PROFILE_OPTION_GROUPS[group]:
+        if normalized == _pref_label(locale, key):
+            return key
     return None
 
 async def copy_get(key: str, locale: str = "en", phase: Optional[str] = None) -> str:
@@ -1948,13 +2169,28 @@ async def render_settings(profile: UserProfile) -> str:
         history_lines.append(f"• {item['period_start']} → {item['period_end'] or _ui(locale, 'unknown')}")
     history_block = "\n".join(history_lines) if history_lines else _ui(locale, "no_history")
 
+    profile_lines = [
+        f"{_ui(locale, 'support_preference')}: <b>{_pref_label(locale, profile.support_preference) if profile.support_preference else _ui(locale, 'profile_empty')}</b>",
+        f"{_ui(locale, 'what_annoys')}: <b>{_pref_label(locale, profile.what_annoys) if profile.what_annoys else _ui(locale, 'profile_empty')}</b>",
+        f"{_ui(locale, 'person_style')}: <b>{_pref_label(locale, profile.person_style) if profile.person_style else _ui(locale, 'profile_empty')}</b>",
+        f"{_ui(locale, 'rest_style')}: <b>{_pref_label(locale, profile.rest_style) if profile.rest_style else _ui(locale, 'profile_empty')}</b>",
+    ]
+    if profile.city_name:
+        profile_lines.append(f"{_ui(locale, 'city_name')}: <b>{profile.city_name}</b>")
+    if profile.optional_note:
+        profile_lines.append(f"{_ui(locale, 'optional_note')}: <b>{profile.optional_note}</b>")
+    profile_block = "\n".join(profile_lines)
+
     return (
         f"<b>{_ui(locale, 'settings')}</b>\n\n"
         f"<b>{_ui(locale, 'partner')}</b>\n"
-        f"{_ui(locale, 'name')}: <b>{profile.partner_name}</b>\n"
+        f"{_ui(locale, 'nickname')}: <b>{profile.partner_name}</b>\n"
         f"{_ui(locale, 'language')}: <b>{profile.locale}</b>\n"
         f"{_ui(locale, 'paused')}: <b>{_ui(locale, 'yes') if profile.paused else _ui(locale, 'no')}</b>\n"
         f"{_ui(locale, 'notify')}: <b>{profile.notify_time}</b> ({profile.tz})\n\n"
+        f"<b>{_ui(locale, 'personalization')}</b>\n"
+        f"{profile_block}\n"
+        f"{_ui(locale, 'profile_hint')}\n\n"
         f"<b>{_ui(locale, 'cycle')}</b>\n"
         f"{_ui(locale, 'today_day')}: <b>{_ui(locale, 'day_short')} {day}/{profile.cycle_length}</b>\n"
         f"{_ui(locale, 'phase')}: <b>{_phase_name(phase, locale)}</b> {PHASE_EMOJI[phase]}\n"
@@ -1972,6 +2208,7 @@ async def render_settings(profile: UserProfile) -> str:
         f"{_ui(locale, 'settings_stats_hint', stats=_btn(locale, BTN_STATS))}\n\n"
         f"<b>{_ui(locale, 'commands')}</b>\n"
         f"• /update_period\n"
+        f"• /profile\n"
         f"• /set_time HH:MM\n"
         f"• /set_cycle 21-35\n"
         f"• {_btn(locale, BTN_LANGUAGE)} or /set_lang\n"
@@ -2150,7 +2387,7 @@ async def _send(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, r
 # ----------------------------
 # Onboarding (menu always visible + menu presses don't break steps)
 # ----------------------------
-(O_LANG, O_NICK, O_DOB, O_START, O_END, O_CYCLE, O_TIME, U_START, U_END) = range(9)
+(O_LANG, O_NICK, O_DOB, O_START, O_END, O_CYCLE, O_TIME, U_START, U_END, P_SUPPORT, P_ANNOY, P_STYLE, P_REST, P_CITY, P_NOTE) = range(15)
 
 async def start_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["locale"] = "en"
@@ -2459,6 +2696,173 @@ async def apply_language_choice(update: Update, context: ContextTypes.DEFAULT_TY
     )
 
 
+async def cmd_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    profile = await db_fetch_user(update.effective_chat.id)
+    if not profile:
+        return await start_onboarding(update, context)
+    _sync_locale(context, profile)
+    context.user_data["profile_edit"] = {
+        "support_preference": profile.support_preference,
+        "what_annoys": profile.what_annoys,
+        "person_style": profile.person_style,
+        "rest_style": profile.rest_style,
+        "city_name": profile.city_name,
+        "optional_note": profile.optional_note,
+    }
+    await _send(
+        update,
+        context,
+        _ui(profile.locale, "profile_intro") + "\n\n" + _ui(profile.locale, "profile_q1"),
+        reply_markup=_profile_kb(profile.locale, "support"),
+    )
+    return P_SUPPORT
+
+
+async def p_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    profile = await db_fetch_user(update.effective_chat.id)
+    if not profile:
+        return await start_onboarding(update, context)
+    _sync_locale(context, profile)
+    if _is_menu_press(update.message.text):
+        await _send(update, context, _ui(profile.locale, "profile_q1"), reply_markup=_profile_kb(profile.locale, "support"))
+        return P_SUPPORT
+    choice = _profile_choice_key(profile.locale, "support", update.message.text)
+    if not choice:
+        await _send(update, context, _ui(profile.locale, "profile_q1"), reply_markup=_profile_kb(profile.locale, "support"))
+        return P_SUPPORT
+    context.user_data.setdefault("profile_edit", {})["support_preference"] = choice
+    await _send(update, context, _ui(profile.locale, "profile_q2"), reply_markup=_profile_kb(profile.locale, "annoys"))
+    return P_ANNOY
+
+
+async def p_annoy(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    profile = await db_fetch_user(update.effective_chat.id)
+    if not profile:
+        return await start_onboarding(update, context)
+    _sync_locale(context, profile)
+    if _is_menu_press(update.message.text):
+        await _send(update, context, _ui(profile.locale, "profile_q2"), reply_markup=_profile_kb(profile.locale, "annoys"))
+        return P_ANNOY
+    choice = _profile_choice_key(profile.locale, "annoys", update.message.text)
+    if not choice:
+        await _send(update, context, _ui(profile.locale, "profile_q2"), reply_markup=_profile_kb(profile.locale, "annoys"))
+        return P_ANNOY
+    context.user_data.setdefault("profile_edit", {})["what_annoys"] = choice
+    await _send(update, context, _ui(profile.locale, "profile_q3"), reply_markup=_profile_kb(profile.locale, "style"))
+    return P_STYLE
+
+
+async def p_style(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    profile = await db_fetch_user(update.effective_chat.id)
+    if not profile:
+        return await start_onboarding(update, context)
+    _sync_locale(context, profile)
+    if _is_menu_press(update.message.text):
+        await _send(update, context, _ui(profile.locale, "profile_q3"), reply_markup=_profile_kb(profile.locale, "style"))
+        return P_STYLE
+    choice = _profile_choice_key(profile.locale, "style", update.message.text)
+    if not choice:
+        await _send(update, context, _ui(profile.locale, "profile_q3"), reply_markup=_profile_kb(profile.locale, "style"))
+        return P_STYLE
+    context.user_data.setdefault("profile_edit", {})["person_style"] = choice
+    await _send(update, context, _ui(profile.locale, "profile_q4"), reply_markup=_profile_kb(profile.locale, "rest"))
+    return P_REST
+
+
+async def p_rest(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    profile = await db_fetch_user(update.effective_chat.id)
+    if not profile:
+        return await start_onboarding(update, context)
+    _sync_locale(context, profile)
+    if _is_menu_press(update.message.text):
+        await _send(update, context, _ui(profile.locale, "profile_q4"), reply_markup=_profile_kb(profile.locale, "rest"))
+        return P_REST
+    choice = _profile_choice_key(profile.locale, "rest", update.message.text)
+    if not choice:
+        await _send(update, context, _ui(profile.locale, "profile_q4"), reply_markup=_profile_kb(profile.locale, "rest"))
+        return P_REST
+    context.user_data.setdefault("profile_edit", {})["rest_style"] = choice
+    await _send(
+        update,
+        context,
+        _ui(profile.locale, "profile_q5"),
+        reply_markup=ReplyKeyboardMarkup(
+            [[_ui(profile.locale, "skip_button")], [_btn(profile.locale, BTN_SETTINGS), _btn(profile.locale, BTN_TODAY)]],
+            resize_keyboard=True,
+            one_time_keyboard=False,
+            input_field_placeholder=_ui(profile.locale, "city_name"),
+        ),
+    )
+    return P_CITY
+
+
+async def p_city(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    profile = await db_fetch_user(update.effective_chat.id)
+    if not profile:
+        return await start_onboarding(update, context)
+    _sync_locale(context, profile)
+    text = _norm(update.message.text)
+    if _is_menu_press(text):
+        await _send(
+            update,
+            context,
+            _ui(profile.locale, "profile_q5"),
+            reply_markup=ReplyKeyboardMarkup(
+                [[_ui(profile.locale, "skip_button")], [_btn(profile.locale, BTN_SETTINGS), _btn(profile.locale, BTN_TODAY)]],
+                resize_keyboard=True,
+                one_time_keyboard=False,
+                input_field_placeholder=_ui(profile.locale, "city_name"),
+            ),
+        )
+        return P_CITY
+    city_name = None if text.lower() in _skip_words(profile.locale) or text == _ui(profile.locale, "skip_button") else text[:80]
+    context.user_data.setdefault("profile_edit", {})["city_name"] = city_name
+    await _send(
+        update,
+        context,
+        _ui(profile.locale, "profile_q6"),
+        reply_markup=ReplyKeyboardMarkup(
+            [[_ui(profile.locale, "skip_button")], [_btn(profile.locale, BTN_SETTINGS), _btn(profile.locale, BTN_TODAY)]],
+            resize_keyboard=True,
+            one_time_keyboard=False,
+            input_field_placeholder=_ui(profile.locale, "optional_note"),
+        ),
+    )
+    return P_NOTE
+
+
+async def p_note(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    profile = await db_fetch_user(update.effective_chat.id)
+    if not profile:
+        return await start_onboarding(update, context)
+    _sync_locale(context, profile)
+    text = _norm(update.message.text)
+    if _is_menu_press(text):
+        await _send(
+            update,
+            context,
+            _ui(profile.locale, "profile_q6"),
+            reply_markup=ReplyKeyboardMarkup(
+                [[_ui(profile.locale, "skip_button")], [_btn(profile.locale, BTN_SETTINGS), _btn(profile.locale, BTN_TODAY)]],
+                resize_keyboard=True,
+                one_time_keyboard=False,
+                input_field_placeholder=_ui(profile.locale, "optional_note"),
+            ),
+        )
+        return P_NOTE
+    note = None if text.lower() in _skip_words(profile.locale) or text == _ui(profile.locale, "skip_button") else text[:240]
+    edits = context.user_data.pop("profile_edit", {})
+    profile.support_preference = edits.get("support_preference")
+    profile.what_annoys = edits.get("what_annoys")
+    profile.person_style = edits.get("person_style")
+    profile.rest_style = edits.get("rest_style")
+    profile.city_name = edits.get("city_name")
+    profile.optional_note = note
+    await db_upsert_user(profile)
+    await _send(update, context, _ui(profile.locale, "profile_saved") + "\n\n" + await render_settings(profile))
+    return ConversationHandler.END
+
+
 async def _save_period_update(update: Update, context: ContextTypes.DEFAULT_TYPE, start_s: str, end_s: Optional[str]):
     profile = await db_fetch_user(update.effective_chat.id)
     if not profile:
@@ -2569,6 +2973,7 @@ async def _record_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE, h
         cycle_day=snap["day"],
         phase=snap["phase"],
         helpful=helpful,
+        feedback_reason=None,
         cue_headline=cue["headline"],
         sun_sign=profile.sun_sign or _sun_sign_from_dob(profile.partner_dob),
         life_path_number=profile.life_path_number if profile.life_path_number is not None else _life_path_number_from_dob(profile.partner_dob),
@@ -2713,6 +3118,21 @@ def build_app() -> Application:
         allow_reentry=True,
     )
     app.add_handler(period_conv)
+
+    profile_conv = ConversationHandler(
+        entry_points=[CommandHandler("profile", cmd_profile)],
+        states={
+            P_SUPPORT: [MessageHandler(filters.TEXT & ~filters.COMMAND, p_support)],
+            P_ANNOY: [MessageHandler(filters.TEXT & ~filters.COMMAND, p_annoy)],
+            P_STYLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, p_style)],
+            P_REST: [MessageHandler(filters.TEXT & ~filters.COMMAND, p_rest)],
+            P_CITY: [MessageHandler(filters.TEXT & ~filters.COMMAND, p_city)],
+            P_NOTE: [MessageHandler(filters.TEXT & ~filters.COMMAND, p_note)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+        allow_reentry=True,
+    )
+    app.add_handler(profile_conv)
 
     app.add_handler(CommandHandler("today", cmd_today))
     app.add_handler(CommandHandler("forecast", cmd_forecast))

@@ -25,6 +25,16 @@ The main bottleneck is:
 
 The logic is already good enough to support a stronger content layer.
 
+There is now also a privacy-safe mini-profile layer:
+
+- `/profile`
+- support preference
+- what annoys her more
+- overall style
+- preferred reset type
+- optional city
+- optional short note
+
 ## Key Product Direction
 
 Do not keep adding visible complexity.
@@ -61,6 +71,8 @@ Avoid:
 5. [CONTENT_SYSTEM.md](/Users/zkblook/Documents/Playground/daycue/CONTENT_SYSTEM.md)
 6. [ROADMAP.md](/Users/zkblook/Documents/Playground/daycue/ROADMAP.md)
 7. [CHANGELOG.md](/Users/zkblook/Documents/Playground/daycue/CHANGELOG.md)
+8. [INTEGRATIONS.md](/Users/zkblook/Documents/Playground/daycue/INTEGRATIONS.md)
+9. [IMPLEMENTATION_LOG.md](/Users/zkblook/Documents/Playground/daycue/IMPLEMENTATION_LOG.md)
 
 ## Recommended Next Work
 

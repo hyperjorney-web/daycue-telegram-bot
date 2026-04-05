@@ -9,6 +9,7 @@ Daycue is a Telegram bot for cycle-aware relationship support. It helps a partne
 - `Stats` with current dimensions and estimated hormone picture
 - `Insights` from user feedback
 - `Settings` with partner profile and recent period history
+- `/profile` for privacy-safe preference memory
 - `Helpful / Not helpful` feedback loop
 - simpler onboarding:
   - short date formats like `5.4`, `05/04`, `today`, `yesterday`
@@ -31,6 +32,8 @@ Daycue is a Telegram bot for cycle-aware relationship support. It helps a partne
 - [ROADMAP.md](/Users/zkblook/Documents/Playground/daycue/ROADMAP.md): current gaps and next milestones
 - [CHANGELOG.md](/Users/zkblook/Documents/Playground/daycue/CHANGELOG.md): high-level product and system changes over time
 - [HANDOFF.md](/Users/zkblook/Documents/Playground/daycue/HANDOFF.md): next-agent orientation and operational notes
+- [INTEGRATIONS.md](/Users/zkblook/Documents/Playground/daycue/INTEGRATIONS.md): official external resource stack and integration order
+- [IMPLEMENTATION_LOG.md](/Users/zkblook/Documents/Playground/daycue/IMPLEMENTATION_LOG.md): running engineering log and current phase notes
 
 ## Runtime Requirements
 

@@ -51,6 +51,7 @@ Goal:
 - add 3-question preference mini-profile
 - add optional free-text note
 - add preference memory table
+- add optional city for weather-aware ideas
 
 ### Milestone C: Better Feedback
 

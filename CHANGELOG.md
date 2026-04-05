@@ -36,6 +36,15 @@
 - added content system documentation
 - added privacy notes
 - added roadmap
+- added integrations stack documentation
+- added implementation log
+
+### Profile Memory
+
+- added privacy-safe preference profile fields to the user model
+- added `/profile` conversational flow for lightweight preference memory
+- added optional `city_name` for future weather-aware recommendations
+- added `feedback_reason` field to prepare the next feedback iteration
 
 ## 2026-04-04
 
